@@ -1,5 +1,3 @@
-import { Zap } from 'lucide-react';
-
 // ⚠️ 关键点：这里必须有 'export' 关键字
 export interface Analysis {
   signal: string;

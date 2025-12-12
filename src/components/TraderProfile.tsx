@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Zap, TrendingUp, CheckCircle, XCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { X, Zap, TrendingUp, CheckCircle } from 'lucide-react';
 
 interface TraderProfileProps {
   onClose: () => void;

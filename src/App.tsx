@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@supabase/supabase-js';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 
@@ -10,6 +11,16 @@ declare global {
       WebApp?: {
         ready?: () => void;
         expand?: () => void;
+        isVersionAtLeast?: (version: string) => boolean;
+        requestInvoice?: (
+          invoiceLink: string,
+          callback: (status: 'paid' | 'failed' | 'cancelled' | string) => void
+        ) => void;
+        showAlert?: (message: string, callback?: () => void) => void;
+        showPopup?: (
+          params: { title?: string; message: string; buttons?: Array<{ id?: string; type?: string; text: string }> },
+          callback?: (buttonId: string) => void
+        ) => void;
         initDataUnsafe?: {
           start_param?: unknown;
           user?: {
@@ -22,6 +33,16 @@ declare global {
   }
 }
 
+const SUPABASE_URL =
+  typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_SUPABASE_URL : undefined;
+const SUPABASE_ANON_KEY =
+  typeof import.meta !== 'undefined' ? (import.meta as any).env?.VITE_SUPABASE_ANON_KEY : undefined;
+
+const supabase =
+  typeof SUPABASE_URL === 'string' && SUPABASE_URL.length > 0 && typeof SUPABASE_ANON_KEY === 'string' && SUPABASE_ANON_KEY.length > 0
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
 function safeDecodeURIComponent(value: string): string {
   try {
     return decodeURIComponent(value);
@@ -30,44 +51,72 @@ function safeDecodeURIComponent(value: string): string {
   }
 }
 
-function parseReferrerId(startParam: unknown): string | null {
+function parseReferrerId(startParam: unknown): number | null {
   if (typeof startParam !== 'string') return null;
   const raw = safeDecodeURIComponent(startParam).trim();
   if (!raw) return null;
 
   // 期望格式：ref_邀请人ID
-  const match = /^ref_(.+)$/.exec(raw);
+  const match = /^ref_(\d+)$/.exec(raw);
   if (!match) return null;
 
-  const referrerId = match[1]?.trim();
-  if (!referrerId) return null;
+  const referrerIdStr = match[1];
+  const referrerIdNum = Number(referrerIdStr);
+  if (!Number.isSafeInteger(referrerIdNum) || referrerIdNum <= 0) return null;
 
-  // 轻量清洗：只允许常见 ID 字符，避免把奇怪内容透传到后端
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(referrerId)) return null;
-
-  return referrerId;
+  return referrerIdNum;
 }
 
 async function loginOrRegisterWithSupabase(args: {
-  telegramUserId: string;
-  referrerId: string | null;
+  telegramUserId: number;
+  referrerId: number | null;
+  onReferralRewarded?: () => void;
 }) {
-  // NOTE: 这里是占位：项目当前未集成 Supabase SDK。
-  // 你后续可以在这里调用后端（Edge Function / RPC / REST）完成登录/注册。
-
-  const userId = args.telegramUserId;
+  const telegramId = args.telegramUserId;
   const referrerId = args.referrerId;
 
-  // TODO: 根据后端返回判断是否是新用户
-  const isNewUser = false;
+  // TODO: 这里建议改成“以 Supabase 为准”的新用户判断（例如：查询/创建用户记录）。
+  // 目前项目没有完整的登录/注册表结构，所以先用 localStorage 做一个可验证的 isNewUser 判定：
+  // - 第一次在该设备进入：isNewUser=true
+  // - 后续进入：isNewUser=false
+  const firstSeenKey = `ofr3:first_seen:${telegramId}`;
+  const isNewUser = typeof window !== 'undefined' && !window.localStorage.getItem(firstSeenKey);
+  if (isNewUser) {
+    try {
+      window.localStorage.setItem(firstSeenKey, new Date().toISOString());
+    } catch {
+      // ignore storage failures
+    }
+  }
 
   // --- 用户要求的伪代码逻辑（保留在代码里） ---
   if (isNewUser) {
     // 自动注册并赠送初始金币
     // 检查是否有 referrer_id
     if (referrerId) {
-      // TODO: 调用 Supabase RPC 函数给 referrerId 奖励
-      console.log(`User ${userId} was invited by ${referrerId}. Needs reward.`);
+      // 调用 Supabase RPC：给邀请人奖励（新用户触发）
+      // supabase.rpc('reward_referrer', { referrer_id_input: referrerId, new_user_id_input: telegramId })
+      if (!supabase) {
+        console.warn(
+          '[Supabase] Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. Skip reward_referrer RPC.'
+        );
+        return;
+      }
+
+      const { error } = await supabase.rpc('reward_referrer', {
+        referrer_id_input: referrerId,
+        new_user_id_input: telegramId,
+      });
+
+      if (error) {
+        console.error('[Referral] reward_referrer RPC failed:', error);
+        return;
+      }
+
+      console.log(
+        `[Referral] reward_referrer RPC success. new_user=${telegramId} referrer=${referrerId}`
+      );
+      args.onReferralRewarded?.();
     }
   }
 }
@@ -166,7 +215,55 @@ function App() {
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [showWallet, setShowWallet] = useState(false);
   const [balance, setBalance] = useState(1240);
-  const [referrerId, setReferrerId] = useState<string | null>(null);
+  const [referrerId, setReferrerId] = useState<number | null>(null);
+  const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+
+  const showTelegramAlert = (message: string) => {
+    const tg = window.Telegram?.WebApp;
+    if (tg?.showAlert) {
+      tg.showAlert(message);
+      return;
+    }
+    window.alert(message);
+  };
+
+  const handleVipPurchase = async () => {
+    const tg = window.Telegram?.WebApp;
+    if (!tg) {
+      showTelegramAlert('请在 Telegram 内打开以使用 Stars 支付。');
+      return;
+    }
+
+    // 需要 Telegram WebApp >= 6.9 才支持 Stars 支付
+    const supported = tg.isVersionAtLeast?.('6.9') ?? false;
+    if (!supported) {
+      showTelegramAlert('当前 Telegram 版本不支持 Stars 支付，请升级客户端。');
+      return;
+    }
+
+    // 注意：实际支付由你的 Bot 负责
+    const invoiceLink = `https://t.me/Oddsflow_minigame_bot?startapp=buy_vip_100stars`;
+
+    if (!tg.requestInvoice) {
+      showTelegramAlert('当前环境不支持 Stars 支付（requestInvoice 不可用）。');
+      return;
+    }
+
+    tg.requestInvoice(invoiceLink, (status) => {
+      if (status === 'paid') {
+        tg.showAlert?.('支付成功，VIP 已激活！') ?? window.alert('支付成功，VIP 已激活！');
+      } else if (status === 'failed') {
+        tg.showAlert?.('支付失败，请重试。') ?? window.alert('支付失败，请重试。');
+      }
+      // status === 'cancelled'：无需提示
+    });
+  };
+
+  useEffect(() => {
+    if (!bannerMessage) return;
+    const t = window.setTimeout(() => setBannerMessage(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [bannerMessage]);
 
   useEffect(() => {
     // 安全初始化 Telegram Web App（仅在 Telegram 环境下存在）
@@ -192,11 +289,16 @@ function App() {
 
       // 整合登录/注册：把 referrer_id 一起透传给后端处理函数
       const telegramUserId = initDataUnsafe?.user?.id;
-      if (telegramUserId != null) {
+      if (typeof telegramUserId === 'number' && Number.isSafeInteger(telegramUserId) && telegramUserId > 0) {
         void loginOrRegisterWithSupabase({
-          telegramUserId: String(telegramUserId),
+          telegramUserId,
           referrerId: extractedReferrerId,
+          onReferralRewarded: () => {
+            setBannerMessage('🎉 邀请成功！你的朋友已为你赢得 500 金币，奖励已入账！');
+          },
         });
+      } else if (telegramUserId != null) {
+        console.warn('[Telegram] Invalid telegram user id:', telegramUserId);
       }
     } catch (err) {
       console.warn('[Telegram] WebApp init failed:', err);
@@ -213,7 +315,24 @@ function App() {
   const unstarredMatches = matches.filter(m => !m.isStarred);
 
   return (
-    <div className="min-h-screen bg-background text-white pb-20 px-4 pt-6 max-w-md mx-auto relative font-sans">
+    <div
+      className="min-h-screen bg-background text-white pb-20 px-4 pt-6 max-w-md mx-auto relative font-sans"
+      data-referrer-id={referrerId ?? undefined}
+    >
+      <AnimatePresence>
+        {bannerMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="fixed top-3 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-md"
+          >
+            <div className="rounded-xl border border-neon-gold/30 bg-surface/90 backdrop-blur-md px-4 py-3 shadow-[0_0_30px_rgba(255,194,0,0.15)]">
+              <div className="text-sm font-bold text-neon-gold">{bannerMessage}</div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       <header className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-black italic tracking-tighter text-neon-green">
@@ -377,6 +496,7 @@ function App() {
             match={activeMatch} 
             onClose={() => setActiveMatch(null)}
             onUpdateBalance={(amount) => setBalance(prev => prev + amount)}
+            onVipPurchase={handleVipPurchase}
           />
         )}
       </AnimatePresence>

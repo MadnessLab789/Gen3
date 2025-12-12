@@ -30,6 +30,7 @@ interface WarRoomProps {
   match: Match;
   onClose: () => void;
   onUpdateBalance?: (amount: number) => void;
+  onVipPurchase?: () => void | Promise<void>;
 }
 
 type TabType = 'signals' | 'chat' | 'copyTrade';
@@ -261,7 +262,12 @@ function BettingSheet({ match, betAmount, onBetAmountChange, onConfirm, onClose 
   );
 }
 
-export default function WarRoom({ match, onClose, onUpdateBalance }: WarRoomProps) {
+export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase }: WarRoomProps) {
+  // TODO: 后续替换为全局状态（useContext / store）：
+  // 目前按需求先硬编码，方便测试付费墙效果
+  const isVip = false;
+  const VIP_CHANNEL_URL = 'https://t.me/your_channel';
+
   const [activeTab, setActiveTab] = useState<TabType>('signals');
   const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
   const [inputText, setInputText] = useState('');
@@ -277,6 +283,7 @@ export default function WarRoom({ match, onClose, onUpdateBalance }: WarRoomProp
   const [activeTrader, setActiveTrader] = useState<Trader | null>(null);
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -313,6 +320,13 @@ export default function WarRoom({ match, onClose, onUpdateBalance }: WarRoomProp
       return () => clearTimeout(timer);
     }
   }, [settlementResult]);
+
+  // Auto-hide toast
+  useEffect(() => {
+    if (!toastMessage) return;
+    const timer = setTimeout(() => setToastMessage(null), 2500);
+    return () => clearTimeout(timer);
+  }, [toastMessage]);
 
   // 模拟新消息：5s 后让 ou 再次变为未读（红点）
   useEffect(() => {
@@ -419,6 +433,22 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     }
   };
 
+  const handleUnlockVip = () => {
+    if (onVipPurchase) {
+      void onVipPurchase();
+      return;
+    }
+    setToastMessage('VIP 支付功能即将上线！');
+  };
+
+  const handleGoToChannel = () => {
+    try {
+      window.open(VIP_CHANNEL_URL, '_blank');
+    } catch {
+      // ignore
+    }
+  };
+
   // --- Sniper Ticket Card ---
   const SniperTicket = ({ signal }: { signal: SignalItem }) => (
     <div className="bg-surface-highlight border border-neon-gold/50 rounded-xl overflow-hidden shadow-[0_0_24px_rgba(255,194,0,0.12)]">
@@ -509,51 +539,79 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           </div>
         </div>
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <div>
-              <div className="text-xs text-gray-400 mb-1">Strategy</div>
-              <div className="text-lg font-bold text-neon-green">{signal.strategy}</div>
+        {!isVip ? (
+          <div className="bg-black/40 border border-white/10 rounded-lg p-4">
+            <div className="text-sm font-bold text-white mb-2">Unlock Full Analysis</div>
+            <div className="text-xs text-gray-400 mb-4">
+              Upgrade to VIP to view strategy, reasoning, and AI guru notes.
             </div>
             <button
-              onClick={() => {
-                setSelectedAnalysis(signal);
-                setShowAnalysisDetail(true);
-              }}
-              className="text-neon-blue hover:text-white transition-colors animate-pulse"
-              aria-label="View detailed analysis"
+              onClick={handleUnlockVip}
+              className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
             >
-              <Info className="w-5 h-5" />
+              Unlock Full Analysis
             </button>
-          </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-400 mb-1">Suggestion</div>
-            <div className="flex items-center justify-end text-lg font-bold text-white">
-              <span>{signal.suggestion}</span>
-              <Info
-                onClick={() => {
-                  setSelectedAnalysis(signal);
-                  setShowAnalysisDetail(true);
-                }}
-                className="w-4 h-4 text-neon-blue ml-2 cursor-pointer animate-pulse"
-              />
+            <div className="text-[11px] text-gray-400 mt-2 text-center">
+              Unlock with 100 Stars • Upgrade to VIP
             </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div>
+                  <div className="text-xs text-gray-400 mb-1">Strategy</div>
+                  <div className="text-lg font-bold text-neon-green">{signal.strategy}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedAnalysis(signal);
+                    setShowAnalysisDetail(true);
+                  }}
+                  className="text-neon-blue hover:text-white transition-colors animate-pulse"
+                  aria-label="View detailed analysis"
+                >
+                  <Info className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-gray-400 mb-1">Suggestion</div>
+                <div className="flex items-center justify-end text-lg font-bold text-white">
+                  <span>{signal.suggestion}</span>
+                  <Info
+                    onClick={() => {
+                      setSelectedAnalysis(signal);
+                      setShowAnalysisDetail(true);
+                    }}
+                    className="w-4 h-4 text-neon-blue ml-2 cursor-pointer animate-pulse"
+                  />
+                </div>
+              </div>
+            </div>
 
-      <div className="flex items-start gap-3 bg-black/40 border border-white/10 rounded-lg p-3">
-        <div className="w-10 h-10 rounded-full bg-neon-purple/30 flex items-center justify-center text-xl">🧔</div>
-        <p className="text-sm text-gray-200 leading-relaxed">
-          {signal.guruComment}
-        </p>
-      </div>
+            <div className="flex items-start gap-3 bg-black/40 border border-white/10 rounded-lg p-3">
+              <div className="w-10 h-10 rounded-full bg-neon-purple/30 flex items-center justify-center text-xl">🧔</div>
+              <p className="text-sm text-gray-200 leading-relaxed">
+                {signal.guruComment}
+              </p>
+            </div>
 
-        <button
-          onClick={handlePlaceBet}
-          className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
-        >
-          Follow Bet
-        </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleGoToChannel}
+                className="w-full py-2 bg-white/5 text-white font-bold text-sm rounded-lg border border-white/10 hover:border-neon-blue/50 hover:bg-white/10 transition-all"
+              >
+                Go to Channel for Discussion
+              </button>
+              <button
+                onClick={handlePlaceBet}
+                className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
+              >
+                Follow Bet
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -634,6 +692,22 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl overflow-y-auto"
     >
       <div className="min-h-screen max-w-md mx-auto px-4 pt-6 pb-24">
+        {/* Toast */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="fixed top-3 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md"
+            >
+              <div className="rounded-xl border border-neon-gold/30 bg-surface/90 backdrop-blur-md px-4 py-3 shadow-[0_0_30px_rgba(255,194,0,0.15)]">
+                <div className="text-sm font-bold text-neon-gold">{toastMessage}</div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <header className="flex items-center gap-4 mb-6">
           <button
@@ -948,7 +1022,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
       {/* Analysis Detail Modal */}
       <AnimatePresence>
-        {showAnalysisDetail && selectedAnalysis && (
+        {showAnalysisDetail && selectedAnalysis && isVip && (
           <AnalysisModal
             signal={selectedAnalysis}
             onClose={() => setShowAnalysisDetail(false)}
