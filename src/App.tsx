@@ -225,18 +225,21 @@ function App() {
   // Telegram Mini App 自动登录（Supabase: provider=telegram）
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
-
-    // 1) 更鲁棒的环境判断
     if (!tg) {
       setAuthLoading(false);
       setAuthError('Not running inside Telegram WebApp.');
       return;
     }
+    const token = typeof tg.initData === 'string' ? tg.initData : '';
+    if (!token) {
+      setAuthLoading(false);
+      setAuthError('Missing Telegram initData.');
+      return;
+    }
+
     if (!supabase) {
       setAuthLoading(false);
-      setAuthError(
-        'Supabase client not configured. Check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.'
-      );
+      setAuthError('Supabase client not configured. Check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.');
       return;
     }
 
@@ -244,25 +247,6 @@ function App() {
     (async () => {
       setAuthLoading(true);
       setAuthError(null);
-
-      // 2) 必须先调用 WebApp.ready()，确保 Telegram API 组件加载完成后再读取 initData
-      try {
-        tg.ready?.();
-      } catch {
-        // ignore
-      }
-      // 给 Telegram 一次微任务/下一帧的机会去完成初始化（避免极端情况下 initData 为空）
-      await new Promise((r) => setTimeout(r, 0));
-
-      const token = typeof tg.initData === 'string' ? tg.initData : '';
-      if (!token) {
-        setAuthError('Missing Telegram initData.');
-        setAuthLoading(false);
-        return;
-      }
-
-      const telegramUserId = tg.initDataUnsafe?.user?.id;
-      const telegramUsername = tg.initDataUnsafe?.user?.username;
 
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'telegram',
@@ -278,57 +262,8 @@ function App() {
         return;
       }
 
-      const session = data?.session ?? null;
-      const userId = session?.user?.id ?? data?.user?.id ?? null;
+      const userId = data?.session?.user?.id ?? data?.user?.id ?? null;
       setSupabaseUserId(userId);
-
-      // 3) 首次登录后，确保 users 表存在对应记录（如果没有则插入默认数据）
-      // 约定字段：
-      // - telegram_id: number/bigint
-      // - telegram_username: text
-      // - supabase_user_id: uuid
-      // - coins: int
-      // - is_vip: boolean
-      //
-      // 注意：如果你的 users 表字段命名不同，请在这里同步调整。
-      if (
-        typeof telegramUserId === 'number' &&
-        Number.isSafeInteger(telegramUserId) &&
-        telegramUserId > 0 &&
-        userId
-      ) {
-        try {
-          const { data: existingUser, error: existingError } = await supabase
-            .from('users')
-            .select('id')
-            .eq('telegram_id', telegramUserId)
-            .maybeSingle();
-
-          if (existingError) {
-            console.warn('[Users] Failed to check existing user record:', existingError);
-          } else if (!existingUser) {
-            const DEFAULT_COINS = 0;
-            const DEFAULT_IS_VIP = false;
-
-            const { error: insertError } = await supabase.from('users').insert({
-              telegram_id: telegramUserId,
-              telegram_username: typeof telegramUsername === 'string' ? telegramUsername : null,
-              supabase_user_id: userId,
-              coins: DEFAULT_COINS,
-              is_vip: DEFAULT_IS_VIP,
-            });
-
-            if (insertError) {
-              console.warn('[Users] Failed to insert user record:', insertError);
-            } else {
-              console.log('[Users] Created new user record for telegram_id:', telegramUserId);
-            }
-          }
-        } catch (e) {
-          console.warn('[Users] Unexpected error while ensuring user record:', e);
-        }
-      }
-
       setAuthLoading(false);
     })();
 
