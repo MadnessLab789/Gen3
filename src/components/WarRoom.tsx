@@ -31,6 +31,7 @@ interface WarRoomProps {
   onClose: () => void;
   onUpdateBalance?: (amount: number) => void;
   onVipPurchase?: () => void | Promise<void>;
+  isVip?: boolean;
 }
 
 type TabType = 'signals' | 'chat' | 'copyTrade';
@@ -262,10 +263,7 @@ function BettingSheet({ match, betAmount, onBetAmountChange, onConfirm, onClose 
   );
 }
 
-export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase }: WarRoomProps) {
-  // TODO: 后续替换为全局状态（useContext / store）：
-  // 目前按需求先硬编码，方便测试付费墙效果
-  const isVip = false;
+export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase, isVip = false }: WarRoomProps) {
   const VIP_CHANNEL_URL = 'https://t.me/your_channel';
 
   const [activeTab, setActiveTab] = useState<TabType>('signals');
