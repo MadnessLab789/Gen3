@@ -27,6 +27,7 @@ declare global {
           user?: {
             id?: number;
             username?: string;
+            first_name?: string;
           };
         };
       };
@@ -211,6 +212,8 @@ function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [supabaseUserId, setSupabaseUserId] = useState<string | null>(null);
+  const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [vipLevel, setVipLevel] = useState<string | null>(null);
   const [authAttempt, setAuthAttempt] = useState(0);
 
   const showTelegramAlert = (message: string) => {
@@ -222,24 +225,17 @@ function App() {
     window.alert(message);
   };
 
-  // Telegram Mini App 自动登录（Supabase: provider=telegram）
+  // Plan B：Telegram Mini App 自动登录/注册（email/password 派生）
   useEffect(() => {
     const tg = window.Telegram?.WebApp;
-    if (!tg) {
-      setAuthLoading(false);
-      setAuthError('Not running inside Telegram WebApp.');
-      return;
-    }
-    const token = typeof tg.initData === 'string' ? tg.initData : '';
-    if (!token) {
-      setAuthLoading(false);
-      setAuthError('Missing Telegram initData.');
-      return;
-    }
-
     if (!supabase) {
       setAuthLoading(false);
       setAuthError('Supabase client not configured. Check VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY.');
+      return;
+    }
+    if (!tg) {
+      setAuthLoading(false);
+      setAuthError('Not running inside Telegram WebApp.');
       return;
     }
 
@@ -247,23 +243,106 @@ function App() {
     (async () => {
       setAuthLoading(true);
       setAuthError(null);
+      setSupabaseUserId(null);
+      setProfileUsername(null);
+      setVipLevel(null);
 
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'telegram',
-        token,
-      });
+      try {
+        tg.ready?.();
+      } catch {
+        // ignore
+      }
 
-      if (cancelled) return;
+      const telegramUser = tg.initDataUnsafe?.user;
+      const telegramId = telegramUser?.id;
+      const username = telegramUser?.username ?? null;
+      const firstName = telegramUser?.first_name ?? null;
 
-      if (error) {
-        console.error('[Auth] Telegram signInWithIdToken failed:', error);
-        setAuthError(error.message);
+      if (typeof telegramId !== 'number' || !Number.isSafeInteger(telegramId) || telegramId <= 0) {
+        setAuthError('Missing Telegram user id in initDataUnsafe.');
         setAuthLoading(false);
         return;
       }
 
-      const userId = data?.session?.user?.id ?? data?.user?.id ?? null;
-      setSupabaseUserId(userId);
+      // 2) 构建登录凭证（Plan B）
+      const email = `${telegramId}@oddsflow.user`;
+      const password = `oddsflow_secret_${telegramId}`;
+
+      // 3) 先尝试登录
+      const signInRes = await supabase.auth.signInWithPassword({ email, password });
+      if (cancelled) return;
+
+      let sessionUserId: string | null =
+        signInRes.data?.session?.user?.id ?? signInRes.data?.user?.id ?? null;
+
+      // 失败则走注册（仅在“无效凭证/用户不存在”这种典型新用户场景）
+      if (!sessionUserId || signInRes.error) {
+        const msg = signInRes.error?.message ?? '';
+        const isLikelyNewUser =
+          msg.toLowerCase().includes('invalid login credentials') ||
+          msg.toLowerCase().includes('user not found') ||
+          (signInRes.error as any)?.status === 400;
+
+        if (!isLikelyNewUser) {
+          console.error('[Auth] signInWithPassword failed:', signInRes.error);
+          setAuthError(signInRes.error?.message ?? 'Sign in failed.');
+          setAuthLoading(false);
+          return;
+        }
+
+        const signUpRes = await supabase.auth.signUp({ email, password });
+        if (cancelled) return;
+
+        if (signUpRes.error) {
+          console.error('[Auth] signUp failed:', signUpRes.error);
+          setAuthError(signUpRes.error.message);
+          setAuthLoading(false);
+          return;
+        }
+
+        const authUserId = signUpRes.data?.user?.id ?? null;
+        if (!authUserId) {
+          setAuthError('Sign up succeeded but missing user id.');
+          setAuthLoading(false);
+          return;
+        }
+
+        // 关键步骤：注册成功后插入 public.users
+        const { error: insertError } = await supabase.from('users').insert({
+          id: authUserId,
+          telegram_id: telegramId,
+          username,
+          first_name: firstName,
+          vip_level: 'free',
+        });
+
+        if (insertError) {
+          console.warn('[Users] insert failed:', insertError);
+          // 不阻塞：auth 已完成，用户表可后续修复/补插
+        }
+
+        // signUp 可能不立即返回 session（取决于邮箱确认设置），所以这里优先用 user.id
+        sessionUserId = authUserId;
+      }
+
+      if (cancelled) return;
+
+      setSupabaseUserId(sessionUserId);
+
+      // 4) 登录成功后读取 users 表 profile
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('username,vip_level')
+        .eq('id', sessionUserId)
+        .maybeSingle();
+
+      if (profileError) {
+        console.warn('[Users] select profile failed:', profileError);
+      } else {
+        setProfileUsername((profile as any)?.username ?? null);
+        setVipLevel((profile as any)?.vip_level ?? null);
+      }
+
       setAuthLoading(false);
     })();
 
@@ -364,7 +443,7 @@ function App() {
       <div className="min-h-screen bg-background text-white flex items-center justify-center px-6">
         <div className="text-center">
           <div className="text-lg font-black text-neon-gold">Signing in…</div>
-          <div className="text-xs text-gray-400 mt-2">Telegram Mini App → Supabase</div>
+          <div className="text-xs text-gray-400 mt-2">Plan B • Telegram → Supabase</div>
         </div>
       </div>
     );
@@ -415,7 +494,8 @@ function App() {
             ODDSFLOW<span className="text-white not-italic text-sm font-normal ml-1">AI</span>
           </h1>
           <div className="text-[10px] text-gray-400 font-mono mt-1">
-            Supabase ID: <span className="text-white">{supabaseUserId}</span>
+            Hi, <span className="text-white">{profileUsername ?? '...'}</span>{' '}
+            <span className="text-gray-500">(Level: {vipLevel ?? '...'})</span>
           </div>
         </div>
         <button
