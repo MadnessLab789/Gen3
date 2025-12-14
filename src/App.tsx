@@ -190,31 +190,91 @@ function App() {
   };
 
   const handleEnterWarRoom = async (match: Match) => {
-    // DEBUG MODE (temporary): show identity first
-    window.alert('Step 1: My ID is ' + String((user as any)?.id));
+    // Safety check: must be opened in Telegram and have a valid Telegram user id
+    const tg = window.Telegram?.WebApp;
+    const tgUserId = tg?.initDataUnsafe?.user?.id;
+    if (
+      !tg ||
+      typeof tgUserId !== 'number' ||
+      !Number.isSafeInteger(tgUserId) ||
+      tgUserId <= 0 ||
+      !user ||
+      typeof user.id !== 'number' ||
+      !Number.isSafeInteger(user.id) ||
+      user.id <= 0 ||
+      tgUserId !== user.id
+    ) {
+      tg?.showAlert?.('Please open in Telegram') ?? window.alert('Please open in Telegram');
+      return;
+    }
 
-    // Force call RPC (no local if checks)
+    const sb = supabase;
+    if (!sb) {
+      tg.showAlert?.('Supabase not ready. Please try again.') ??
+        window.alert('Supabase not ready. Please try again.');
+      return;
+    }
+
+    // If VIP already active, allow entering immediately
+    if (isVipActive(user.vip_end_time)) {
+      tg.showAlert?.('✅ Access Granted! Welcome to the War Room.') ??
+        showTelegramAlert('✅ Access Granted! Welcome to the War Room.');
+      setActiveMatch(match);
+      return;
+    }
+
+    // No client-side balance checks; rely entirely on RPC result
     setVipProcessingMatchId(match.id);
     try {
-      const { data, error } = await (supabase as any).rpc('purchase_vip', {
-        user_telegram_id: (user as any)?.id,
+      const { data, error } = await sb.rpc('purchase_vip', {
+        user_telegram_id: user.id, // Telegram numeric ID
         cost_amount: 50,
       });
 
       if (error) {
-        window.alert('RPC Error: ' + JSON.stringify(error));
+        tg.showAlert?.(`❌ ${error.message || 'Transaction failed'}`) ??
+          showTelegramAlert(`❌ ${error.message || 'Transaction failed'}`);
         return;
       }
 
-      window.alert('Server says: ' + JSON.stringify(data));
-
-      // In debug mode, still allow entering after successful response
-      if ((data as any)?.success === true) {
-        setActiveMatch(match);
+      if ((data as any)?.success !== true) {
+        const message = (data as any)?.message ? String((data as any).message) : 'Transaction failed';
+        tg.showAlert?.(`❌ ${message}`) ?? showTelegramAlert(`❌ ${message}`);
+        return;
       }
+
+      // Refresh user row from DB (coins + vip_end_time) after purchase
+      const { data: row, error: rowError } = await sb
+        .from('users')
+        .select('*')
+        .eq('telegram_id', user.telegram_id)
+        .maybeSingle();
+
+      if (rowError) console.warn('[VIP] Failed to refresh user after purchase:', rowError);
+
+      const latestCoins = Number((row as any)?.coins ?? (row as any)?.balance ?? user.coins) || 0;
+      const latestVipEnd = ((row as any)?.vip_end_time ?? user.vip_end_time ?? null) as
+        | string
+        | null;
+
+      setUser((prev) =>
+        prev
+          ? {
+              ...prev,
+              coins: latestCoins,
+              vip_end_time: latestVipEnd,
+              is_vip: true,
+            }
+          : prev
+      );
+
+      tg.showAlert?.('✅ Access Granted! Welcome to the War Room.') ??
+        showTelegramAlert('✅ Access Granted! Welcome to the War Room.');
+      setActiveMatch(match);
     } catch (e: any) {
       console.error('[VIP] purchase_vip error:', e);
-      window.alert('RPC Error: ' + JSON.stringify(e));
+      tg.showAlert?.(`❌ ${e?.message || 'Transaction failed'}`) ??
+        showTelegramAlert(`❌ ${e?.message || 'Transaction failed'}`);
     } finally {
       setVipProcessingMatchId(null);
     }
