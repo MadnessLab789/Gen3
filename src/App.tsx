@@ -29,7 +29,8 @@ declare global {
 
 // --- Interface Definitions ---
 interface UserProfile {
-  id?: string; // UUID (used by RPC purchase_vip)
+  id: number; // Telegram numeric ID (used by RPC purchase_vip: user_telegram_id)
+  supabase_user_uuid?: string; // optional UUID from users table (if exists)
   telegram_id: number;
   username: string;
   first_name: string;
@@ -208,7 +209,7 @@ function App() {
       console.log('[VIP] Processing payment...');
 
       const { data, error } = await supabase.rpc('purchase_vip', {
-        user_telegram_id: user.telegram_id,
+        user_telegram_id: user.id, // user.id is Telegram numeric ID
         cost_amount: 50,
       });
 
@@ -358,7 +359,8 @@ function App() {
         const vipEndTime = ((row as any)?.vip_end_time ?? null) as string | null;
 
         setUser({
-          id: (row as any)?.id ? String((row as any).id) : undefined,
+          id: telegramId,
+          supabase_user_uuid: (row as any)?.id ? String((row as any).id) : undefined,
           telegram_id: telegramId,
           username,
           first_name: firstName,
