@@ -822,9 +822,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   </div>
                   <div className="text-right">
                     <div className="text-3xl font-black text-white leading-none">
-                      {match.analysis.signal}
+                      LIVE ODDS TREND
                     </div>
-                    <div className="text-sm text-neon-blue font-mono">@ {match.analysis.odds}</div>
+                    <div className="text-sm text-neon-red font-mono animate-pulse">● LIVE</div>
                   </div>
                 </div>
 
