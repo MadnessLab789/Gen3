@@ -190,34 +190,44 @@ function App() {
   };
 
   const handleEnterWarRoom = async (match: Match) => {
-    if (!user || !supabase) {
-      showTelegramAlert('User not ready. Please wait and try again.');
+    // Gate 1: STRICT identity check (no Telegram user => forbid access)
+    const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (
+      !user ||
+      typeof user.id !== 'number' ||
+      !Number.isSafeInteger(user.id) ||
+      user.id <= 0 ||
+      typeof tgUserId !== 'number' ||
+      tgUserId !== user.id
+    ) {
+      window.alert('Please open this app in Telegram to enter.');
       return;
     }
 
-    // 1) Check VIP status by vip_end_time
-    if (isVipActive(user.vip_end_time)) {
-      showTelegramAlert('Access Granted');
-      setActiveMatch(match);
+    if (!supabase) {
+      window.alert('Supabase not ready. Please try again.');
       return;
     }
 
-    // 2) Non-VIP or expired: always delegate balance validation to backend (RPC)
+    // Gate 2: DB decides (no client-side balance checks)
     setVipProcessingMatchId(match.id);
     try {
-      // IMPORTANT: do NOT validate balance on client; rely on RPC result.
       const { data, error } = await supabase.rpc('purchase_vip', {
         user_telegram_id: user.id, // Telegram numeric ID
         cost_amount: 50,
       });
 
-      if (error) throw error;
+      if (error) {
+        window.alert(error.message || 'Transaction failed');
+        return;
+      }
 
-      const success = Boolean((data as any)?.success);
+      const success = (data as any)?.success === true;
       const message = (data as any)?.message ? String((data as any).message) : '';
 
+      // Gate 3: only success === true can enter
       if (!success) {
-        window.Telegram?.WebApp?.showAlert?.(message || 'Transaction failed');
+        window.alert(message || 'Transaction failed');
         return;
       }
 
@@ -248,12 +258,11 @@ function App() {
           : prev
       );
 
-      window.Telegram?.WebApp?.showAlert?.('Welcome! 30 Days Access Added.') ??
-        showTelegramAlert('Welcome! 30 Days Access Added.');
+      window.alert('Welcome! 30 Days Access Added.');
       setActiveMatch(match);
     } catch (e: any) {
       console.error('[VIP] purchase_vip error:', e);
-      showTelegramAlert(e?.message || 'Transaction failed');
+      window.alert(e?.message || 'Transaction failed');
     } finally {
       setVipProcessingMatchId(null);
     }
