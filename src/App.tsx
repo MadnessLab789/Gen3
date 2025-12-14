@@ -29,7 +29,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('radar');
-  const [user, setUser] = useState<any>(null);
+  // 👇 删除了那个会导致报错的 user 变量，只保留 profile
   const [profile, setProfile] = useState<any>(null);
 
   useEffect(() => {
@@ -42,7 +42,7 @@ function App() {
 
       const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
       
-      // 如果没有 TG 用户，停止加载 (或者显示游客模式)
+      // 如果没有 TG 用户，停止加载
       if (!tgUser) {
         console.log("No TG User detected.");
         setLoading(false); 
@@ -89,7 +89,7 @@ function App() {
             .eq('id', userId)
             .single();
           
-          setUser({ id: userId });
+          // 这里不再设置 unused user state，只设置 profile
           setProfile(profileData || { username: tgUser.username, vip_level: 'free' });
         }
 
@@ -112,7 +112,7 @@ function App() {
     );
   }
 
-  // --- 👇 这里就是漂亮的 UI 界面 👇 ---
+  // --- 👇 漂亮的 UI 界面 👇 ---
   return (
     <div className="app-container" style={{ background: '#0f172a', minHeight: '100vh', color: 'white', fontFamily: 'Arial, sans-serif', paddingBottom: '80px' }}>
       
