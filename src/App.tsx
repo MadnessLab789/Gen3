@@ -288,10 +288,7 @@ function App() {
         )}
       </AnimatePresence>
 
-      <Header
-        balanceCoins={user?.coins ?? 0}
-        onBalanceClick={() => setShowWallet(true)}
-      />
+      <Header onBalanceClick={() => setShowWallet(true)} />
 
       <AnimatePresence>
         {starredMatches.length > 0 && (
