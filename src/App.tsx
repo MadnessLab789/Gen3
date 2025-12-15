@@ -172,11 +172,15 @@ function App() {
 
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
-    if (tg?.showAlert) {
-      tg.showAlert(message);
-    } else {
-      window.alert(message);
+    try {
+      if (tg?.showAlert) {
+        tg.showAlert(message);
+        return;
+      }
+    } catch {
+      // Some browsers load telegram-web-app.js but do not support WebApp methods.
     }
+    window.alert(message);
   };
 
   const handleVipPurchase = async () => {
@@ -575,12 +579,23 @@ function App() {
           </button>
         <button
             onClick={() => {
-              // Require Telegram environment + valid user
+              // Telegram: enforce identity match. Browser/dev: allow (we already fallback to a DevUser in init logic).
               const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-              if (!user || typeof tgUserId !== 'number' || tgUserId !== user.id) {
-                showTelegramAlert('Please open in Telegram');
+              // Only treat as "real Telegram WebApp" when we actually have a valid Telegram user id.
+              if (typeof tgUserId === 'number') {
+                if (!user || tgUserId !== user.id) {
+                  showTelegramAlert('Please open in Telegram');
+                  return;
+                }
+                setCurrentView('chat');
                 return;
               }
+
+              if (!user) {
+                window.alert('User not ready yet. Please try again.');
+                return;
+              }
+
               setCurrentView('chat');
             }}
             className="bg-surface-highlight px-3 py-3 rounded-lg text-xs font-mono border border-neon-gold/30 text-neon-gold hover:border-neon-gold/50 hover:bg-surface-highlight/80 transition-all"

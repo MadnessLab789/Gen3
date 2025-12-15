@@ -84,18 +84,36 @@ export default function ChatRoom(props: {
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(new Set());
 
   const endRef = useRef<HTMLDivElement | null>(null);
+  const messageIdsRef = useRef<Set<string>>(new Set());
+  const swipeRef = useRef<{
+    pointerId: number | null;
+    startX: number;
+    startY: number;
+    triggered: boolean;
+    messageId: string | null;
+  }>({ pointerId: null, startX: 0, startY: 0, triggered: false, messageId: null });
+
+  // Dev-only fallback identity so local browser testing can send messages even outside Telegram.
+  const devFallbackIdentity =
+    import.meta.env.DEV && (typeof userId !== 'number' || !username || username.trim().length === 0)
+      ? { userId: 88888888, username: 'dev_testing' }
+      : null;
+
+  const effectiveUserId = devFallbackIdentity?.userId ?? userId;
+  const effectiveUsername = (devFallbackIdentity?.username ?? username ?? '').trim();
+  const currentUserIdForReactions = typeof effectiveUserId === 'number' ? effectiveUserId : null;
 
   const canSend = useMemo(() => {
     return (
-      typeof userId === 'number' &&
-      Number.isFinite(userId) &&
-      userId > 0 &&
-      typeof username === 'string' &&
-      username.trim().length > 0 &&
+      typeof effectiveUserId === 'number' &&
+      Number.isFinite(effectiveUserId) &&
+      effectiveUserId > 0 &&
+      typeof effectiveUsername === 'string' &&
+      effectiveUsername.trim().length > 0 &&
       input.trim().length > 0 &&
       !isSending
     );
-  }, [input, isSending, userId, username]);
+  }, [effectiveUserId, effectiveUsername, input, isSending]);
 
   const scrollToBottom = () => {
     try {
@@ -104,6 +122,10 @@ export default function ChatRoom(props: {
       // ignore
     }
   };
+
+  useEffect(() => {
+    messageIdsRef.current = new Set(messages.map((m) => m.id));
+  }, [messages]);
 
   useEffect(() => {
     setReplyingTo(null);
@@ -121,7 +143,7 @@ export default function ChatRoom(props: {
         console.warn('[ChatRoom] Failed to load message by id:', messageId, error);
         return null;
       }
-      return normalizeMessage(data as unknown as ChatMessageSelectRow, userId);
+      return normalizeMessage(data as unknown as ChatMessageSelectRow, currentUserIdForReactions);
     };
 
     const loadHistory = async () => {
@@ -139,7 +161,7 @@ export default function ChatRoom(props: {
       }
 
       const rows = (data ?? []) as ChatMessageSelectRow[];
-      const normalized = rows.map((r) => normalizeMessage(r, userId));
+      const normalized = rows.map((r) => normalizeMessage(r, currentUserIdForReactions));
       normalized.reverse(); // show oldest -> newest
       setMessages(normalized);
       queueMicrotask(scrollToBottom);
@@ -178,12 +200,11 @@ export default function ChatRoom(props: {
         // ignore
       }
     };
-  }, [roomId, userId]);
+  }, [roomId, currentUserIdForReactions]);
 
   const refreshReactionsForMessage = async (messageId: string) => {
     const sb = supabase;
     if (!sb) return;
-    if (typeof userId !== 'number' || !Number.isFinite(userId) || userId <= 0) return;
 
     const { data, error } = await sb
       .from('message_reactions')
@@ -198,7 +219,10 @@ export default function ChatRoom(props: {
 
     const userIds = (data ?? []).map((r: any) => r?.user_id).filter((v: any) => typeof v === 'number') as number[];
     const likeCount = typeof (data as any)?.length === 'number' ? (data as any).length : userIds.length;
-    const hasLiked = userIds.includes(userId);
+    const hasLiked =
+      typeof effectiveUserId === 'number' && Number.isFinite(effectiveUserId) && effectiveUserId > 0
+        ? userIds.includes(effectiveUserId)
+        : false;
 
     setMessages((prev) =>
       prev.map((m) =>
@@ -212,11 +236,40 @@ export default function ChatRoom(props: {
     );
   };
 
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb) return;
+
+    let cancelled = false;
+
+    const channel = sb
+      .channel(`message-reactions-${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, (payload: any) => {
+        if (cancelled) return;
+        const messageId = String(payload?.new?.message_id ?? payload?.old?.message_id ?? '');
+        const reactionType = String(payload?.new?.reaction_type ?? payload?.old?.reaction_type ?? '');
+        if (!messageId) return;
+        if (reactionType && reactionType !== 'like') return;
+        if (!messageIdsRef.current.has(messageId)) return;
+        void refreshReactionsForMessage(messageId);
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      try {
+        sb.removeChannel(channel);
+      } catch {
+        // ignore
+      }
+    };
+  }, [roomId]);
+
   const toggleLike = async (message: Message) => {
     const sb = supabase;
     if (!sb) return;
 
-    const uid = userId;
+    const uid = effectiveUserId;
     if (typeof uid !== 'number' || !Number.isFinite(uid) || uid <= 0) return;
 
     const messageId = message.id;
@@ -277,14 +330,22 @@ export default function ChatRoom(props: {
     const sb = supabase;
     if (!sb) return;
 
-    const uid = userId;
-    const uname = (username ?? '').trim();
+    const uid = effectiveUserId;
+    const uname = effectiveUsername;
     const content = input.trim();
 
-    if (typeof uid !== 'number' || !Number.isFinite(uid) || uid <= 0) return;
-    if (!uname) return;
-    if (!content) return;
-    if (isSending) return;
+    if (typeof uid !== 'number' || !Number.isFinite(uid) || uid <= 0) {
+      return;
+    }
+    if (!uname) {
+      return;
+    }
+    if (!content) {
+      return;
+    }
+    if (isSending) {
+      return;
+    }
 
     setIsSending(true);
     try {
@@ -300,7 +361,7 @@ export default function ChatRoom(props: {
       }
 
       const row = data as unknown as ChatMessageSelectRow;
-      const normalized = normalizeMessage(row, userId);
+      const normalized = normalizeMessage(row, currentUserIdForReactions);
       setInput('');
       setReplyingTo(null);
       setMessages((prev) => {
@@ -319,7 +380,7 @@ export default function ChatRoom(props: {
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const isMine = (m: Message) => typeof userId === 'number' && m.telegram_id === userId;
+  const isMine = (m: Message) => typeof effectiveUserId === 'number' && m.telegram_id === effectiveUserId;
 
   const title = roomId === 'global' ? '💬 Global Chat' : '💬 War Room Chat';
 
@@ -346,6 +407,13 @@ export default function ChatRoom(props: {
             Supabase is not configured. Please set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
           </div>
         )}
+        {supabase &&
+          !devFallbackIdentity &&
+          (typeof userId !== 'number' || !username || username.trim().length === 0) && (
+            <div className="text-xs text-gray-400 border border-white/10 bg-black/20 rounded-xl px-3 py-2">
+              Sending is disabled because no chat identity was found. Open inside Telegram to send messages.
+            </div>
+          )}
 
         {messages.map((m) => {
           const mine = isMine(m);
@@ -360,6 +428,48 @@ export default function ChatRoom(props: {
                     ? 'bg-neon-green/15 border-neon-green/30'
                     : 'bg-surface/60 border-white/10'
                 }`}
+                style={{ touchAction: 'pan-y' }}
+                onPointerDown={(e) => {
+                  // Right-swipe to reply (touch or mouse drag)
+                  swipeRef.current.pointerId = e.pointerId;
+                  swipeRef.current.startX = e.clientX;
+                  swipeRef.current.startY = e.clientY;
+                  swipeRef.current.triggered = false;
+                  swipeRef.current.messageId = m.id;
+                  try {
+                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                  } catch {
+                    // ignore
+                  }
+                }}
+                onPointerMove={(e) => {
+                  if (swipeRef.current.pointerId !== e.pointerId) return;
+                  if (swipeRef.current.triggered) return;
+                  if (swipeRef.current.messageId !== m.id) return;
+
+                  const dx = e.clientX - swipeRef.current.startX;
+                  const dy = e.clientY - swipeRef.current.startY;
+
+                  // Intent: horizontal swipe right, not vertical scroll
+                  if (dx > 56 && Math.abs(dy) < 24) {
+                    swipeRef.current.triggered = true;
+                    setReplyingTo(m);
+                    // UX: keep focus in composer
+                    queueMicrotask(scrollToBottom);
+                  }
+                }}
+                onPointerUp={(e) => {
+                  if (swipeRef.current.pointerId !== e.pointerId) return;
+                  swipeRef.current.pointerId = null;
+                  swipeRef.current.messageId = null;
+                  swipeRef.current.triggered = false;
+                }}
+                onPointerCancel={(e) => {
+                  if (swipeRef.current.pointerId !== e.pointerId) return;
+                  swipeRef.current.pointerId = null;
+                  swipeRef.current.messageId = null;
+                  swipeRef.current.triggered = false;
+                }}
               >
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <span className={`text-xs font-semibold ${mine ? 'text-neon-green' : 'text-gray-300'}`}>
@@ -397,10 +507,10 @@ export default function ChatRoom(props: {
 
                   <button
                     onClick={() => void toggleLike(m)}
-                    disabled={!supabase || likePending || typeof userId !== 'number'}
+                    disabled={!supabase || likePending || typeof effectiveUserId !== 'number'}
                     className={`inline-flex items-center gap-1.5 text-[11px] transition-colors ${
                       liked ? 'text-neon-gold' : 'text-gray-400 hover:text-neon-gold'
-                    } ${!supabase || typeof userId !== 'number' ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    } ${!devFallbackIdentity && (!supabase || typeof userId !== 'number') ? 'opacity-40 cursor-not-allowed' : ''}`}
                     aria-label="Like"
                     title={liked ? 'Unlike' : 'Like'}
                   >
