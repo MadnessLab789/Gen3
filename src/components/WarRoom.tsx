@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import OddsChart from './OddsChart';
-import TraderProfile from './TraderProfile';
+import CopyTrade from './CopyTrade';
 import ChatRoom from './ChatRoom';
 
 interface Analysis {
@@ -39,20 +39,6 @@ interface WarRoomProps {
 
 type TabType = 'signals' | 'chat' | 'copyTrade';
 
-interface Trader {
-  id: number;
-  name: string;
-  avatarColor: string; // hex color (used for avatar background)
-  roi: number; // percentage (e.g. 189 => +189%)
-  winRate: number; // percentage
-  followers: string;
-  tags: string[];
-  profitFactor: number;
-  chartType: 'up' | 'volatile' | 'streak' | 'smooth';
-  avatar: string;
-  history?: Array<'W' | 'L'>;
-}
-
 type SignalType = 'sniper' | 'analysis';
 
 interface SignalItem {
@@ -73,171 +59,6 @@ interface SignalItem {
   reasoning?: string;
   stats?: string[];
   guruComment?: string;
-}
-
-const MOCK_TRADERS: Trader[] = [
-  // --- Safe / Consistent ---
-  {
-    id: 1,
-    name: 'IronWall',
-    avatar: '🛡️',
-    avatarColor: '#00E5FF',
-    roi: 34,
-    winRate: 82,
-    followers: '18.9k',
-    tags: ['🧱 Safe', '⚽ EPL', '📉 Low DD'],
-    profitFactor: 2.6,
-    chartType: 'up',
-    history: ['W', 'W', 'W', 'L', 'W', 'W', 'W', 'W', 'L', 'W'],
-  },
-  {
-    id: 2,
-    name: 'AsianHandicapPro',
-    avatar: '🧠',
-    avatarColor: '#7F56D9',
-    roi: 48,
-    winRate: 80,
-    followers: '9.2k',
-    tags: ['🟣 HDP', '🎯 1 Match/Day', '📉 Low DD'],
-    profitFactor: 2.3,
-    chartType: 'up',
-    history: ['W', 'W', 'L', 'W', 'W', 'W', 'W', 'L', 'W', 'W'],
-  },
-  {
-    id: 3,
-    name: 'TheGrinder',
-    avatar: '🤖',
-    avatarColor: '#22C55E',
-    roi: 26,
-    winRate: 84,
-    followers: '12.4k',
-    tags: ['🤖 High Volume', '🏀 NBA', '🧱 Safe'],
-    profitFactor: 2.1,
-    chartType: 'smooth',
-    history: ['W', 'W', 'W', 'W', 'L', 'W', 'W', 'W', 'W', 'L'],
-  },
-
-  // --- Aggressive / High Risk ---
-  {
-    id: 4,
-    name: 'CryptoWhale',
-    avatar: '🐋',
-    avatarColor: '#00E5FF',
-    roi: 412,
-    winRate: 58,
-    followers: '3.1k',
-    tags: ['💎 High Risk', '🏀 NBA', '⚡ Volatile'],
-    profitFactor: 1.8,
-    chartType: 'volatile',
-    history: ['W', 'L', 'W', 'L', 'W', 'W', 'L', 'W', 'L', 'W'],
-  },
-  {
-    id: 5,
-    name: 'Underdog King',
-    avatar: '🦊',
-    avatarColor: '#FFC200',
-    roi: 365,
-    winRate: 55,
-    followers: '6.7k',
-    tags: ['⚡ Avg Odds @ 4.5', '🌍 Intl', '💥 Upsets'],
-    profitFactor: 1.7,
-    chartType: 'volatile',
-    history: ['L', 'W', 'W', 'L', 'W', 'L', 'W', 'W', 'L', 'W'],
-  },
-  {
-    id: 6,
-    name: 'LimitBreaker',
-    avatar: '⚡',
-    avatarColor: '#FF3B30',
-    roi: 528,
-    winRate: 52,
-    followers: '2.4k',
-    tags: ['💥 Aggressive', '🔥 Hot', '🎲 High Odds'],
-    profitFactor: 1.6,
-    chartType: 'volatile',
-    history: ['W', 'L', 'L', 'W', 'W', 'L', 'W', 'L', 'W', 'W'],
-  },
-
-  // --- Streak / Momentum ---
-  {
-    id: 7,
-    name: 'StreakLord',
-    avatar: '🔥',
-    avatarColor: '#FF7A00',
-    roi: 142,
-    winRate: 78,
-    followers: '21.1k',
-    tags: ['🔥 10/10 Wins', '⚽ UCL', '🚀 Momentum'],
-    profitFactor: 3.2,
-    chartType: 'streak',
-    history: ['W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W'],
-  },
-  {
-    id: 8,
-    name: 'SharpBet',
-    avatar: '🎯',
-    avatarColor: '#FFD700',
-    roi: 189,
-    winRate: 70,
-    followers: '12.4k',
-    tags: ['🎯 1 Match/Day', '⚽ EPL', '🔥 Hot'],
-    profitFactor: 2.4,
-    chartType: 'streak',
-    history: ['W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W', 'W'],
-  },
-
-  // --- Algo / Official ---
-  {
-    id: 9,
-    name: 'AlphaZero',
-    avatar: '🧬',
-    avatarColor: '#4F46E5',
-    roi: 96,
-    winRate: 74,
-    followers: '54.2k',
-    tags: ['🛡️ Verified', '🤖 Algo', '📈 Smooth'],
-    profitFactor: 2.8,
-    chartType: 'smooth',
-    history: ['W', 'W', 'W', 'L', 'W', 'W', 'W', 'W', 'L', 'W'],
-  },
-  {
-    id: 10,
-    name: 'OddsFlow Bot',
-    avatar: '✅',
-    avatarColor: '#00E5FF',
-    roi: 72,
-    winRate: 76,
-    followers: '103k',
-    tags: ['🛡️ Verified', 'OddsFlow Official', '📈 Smooth'],
-    profitFactor: 2.5,
-    chartType: 'smooth',
-    history: ['W', 'W', 'W', 'W', 'L', 'W', 'W', 'W', 'L', 'W'],
-  },
-];
-
-function MiniSparkline(props: { chartType: Trader['chartType'] }) {
-  const { chartType } = props;
-  const points =
-    chartType === 'smooth'
-      ? '0,16 8,15 16,15 24,14 32,14 40,13 48,13 56,12'
-      : chartType === 'streak'
-        ? '0,16 8,14 16,13 24,11 32,9 40,7 48,5 56,3'
-        : chartType === 'volatile'
-          ? '0,14 8,6 16,16 24,7 32,15 40,8 48,13 56,4'
-          : '0,15 8,14 16,12 24,13 32,10 40,9 48,8 56,7';
-
-  return (
-    <svg viewBox="0 0 56 18" className="w-16 h-5">
-      <defs>
-        <linearGradient id="miniFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(34,197,94,0.25)" />
-          <stop offset="100%" stopColor="rgba(34,197,94,0)" />
-        </linearGradient>
-      </defs>
-      <polyline points={points} fill="none" stroke="rgba(34,197,94,0.95)" strokeWidth="2" strokeLinecap="round" />
-      <polyline points={`${points} 56,18 0,18`} fill="url(#miniFill)" stroke="none" />
-    </svg>
-  );
 }
 
 const MOCK_SIGNALS: SignalItem[] = [
@@ -429,7 +250,6 @@ export default function WarRoom({
   const VIP_CHANNEL_URL = 'https://t.me/your_channel';
 
   const [activeTab, setActiveTab] = useState<TabType>('signals');
-  const [following, setFollowing] = useState<number[]>([]);
   const [showBettingSlip, setShowBettingSlip] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -438,7 +258,6 @@ export default function WarRoom({
   const [filterCategory, setFilterCategory] = useState<'all' | '1x2' | 'hdp' | 'ou'>('all');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [readCategories, setReadCategories] = useState<Set<string>>(new Set());
-  const [activeTrader, setActiveTrader] = useState<Trader | null>(null);
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -488,14 +307,6 @@ export default function WarRoom({
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleFollow = (traderId: number) => {
-    setFollowing((prev) =>
-      prev.includes(traderId)
-        ? prev.filter((id) => id !== traderId)
-        : [...prev, traderId]
-    );
-  };
 
   const handlePlaceBet = () => {
     setShowBettingSlip(true);
@@ -1006,58 +817,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               exit={{ opacity: 0, x: 20 }}
               className="space-y-4"
             >
-              {MOCK_TRADERS.map((trader) => {
-                const isFollowing = following.includes(trader.id);
-                return (
-                  <div
-                    key={trader.id}
-                    className="bg-surface/60 rounded-lg p-4 border border-white/5 flex items-center justify-between hover:border-neon-purple/30 transition-all cursor-pointer"
-                    onClick={() => setActiveTrader(trader)}
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-2xl border border-white/10"
-                        style={{ backgroundColor: trader.avatarColor }}
-                      >
-                        {trader.avatar}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-semibold text-white truncate">{trader.name}</div>
-                        <div className="text-[11px] text-gray-400 font-mono">
-                          <span className="text-neon-green">+{trader.roi}%</span> ROI • {trader.winRate}% WR • PF{' '}
-                          {trader.profitFactor.toFixed(1)} • {trader.followers}
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {trader.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-gray-300 border border-white/10"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-2 ml-3">
-                      <MiniSparkline chartType={trader.chartType} />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFollow(trader.id);
-                        }}
-                        className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${
-                          isFollowing
-                            ? 'bg-neon-green/20 text-neon-green border border-neon-green/30'
-                            : 'bg-gradient-to-r from-neon-gold to-orange-500 text-black hover:shadow-lg hover:shadow-neon-gold/50'
-                        }`}
-                      >
-                        {isFollowing ? 'FOLLOWING' : 'FOLLOW'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              <CopyTrade userId={chatUserId} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1132,18 +892,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           <AnalysisModal
             signal={selectedAnalysis}
             onClose={() => setShowAnalysisDetail(false)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Trader Profile Modal */}
-      <AnimatePresence>
-        {activeTrader && (
-          <TraderProfile
-            trader={activeTrader}
-            isFollowing={following.includes(activeTrader.id)}
-            onFollow={() => handleFollow(activeTrader.id)}
-            onClose={() => setActiveTrader(null)}
           />
         )}
       </AnimatePresence>
