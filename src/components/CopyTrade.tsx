@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 
 interface CopyTradeProps {
   userId: number | null;
+  onSelectTrader: (trader: (typeof MOCK_TRADERS)[number]) => void;
 }
 
 interface FollowRow {
@@ -39,7 +40,7 @@ function MiniSparkline({ styleKey }: { styleKey: string }) {
   );
 }
 
-export default function CopyTrade({ userId }: CopyTradeProps) {
+export default function CopyTrade({ userId, onSelectTrader }: CopyTradeProps) {
   const [followedTraderIds, setFollowedTraderIds] = useState<number[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -147,6 +148,7 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
           <div
             key={trader.id}
             className="bg-surface/60 rounded-lg p-4 border border-white/5 hover:border-neon-purple/30 transition-all"
+            onClick={() => onSelectTrader(trader)}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -174,7 +176,10 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
 
               <div className="flex flex-col items-end gap-2">
                 <button
-                  onClick={() => void toggleFollow(trader.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void toggleFollow(trader.id);
+                  }}
                   className={`px-4 py-2 rounded-lg font-bold text-sm transition-all border ${
                     isFollowing
                       ? 'bg-neon-green/20 text-neon-green border-neon-green/30'

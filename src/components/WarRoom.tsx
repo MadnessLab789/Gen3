@@ -3,6 +3,7 @@ import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Shar
 import { motion, AnimatePresence } from 'framer-motion';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
+import TraderProfile from './TraderProfile';
 import ChatRoom from './ChatRoom';
 
 interface Analysis {
@@ -271,6 +272,7 @@ export default function WarRoom({
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [selectedTrader, setSelectedTrader] = useState<any | null>(null);
 
   const tabs = [
     { id: 'signals' as TabType, label: 'Signals', icon: TrendingUp },
@@ -827,7 +829,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               exit={{ opacity: 0, x: 20 }}
               className="space-y-4"
             >
-              <CopyTrade userId={chatUserId} />
+              {selectedTrader ? (
+                <TraderProfile trader={selectedTrader} onClose={() => setSelectedTrader(null)} />
+              ) : (
+                <CopyTrade userId={chatUserId} onSelectTrader={(trader) => setSelectedTrader(trader)} />
+              )}
             </motion.div>
           )}
         </AnimatePresence>
