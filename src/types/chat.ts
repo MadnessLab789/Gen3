@@ -10,6 +10,7 @@ export interface Message {
   username: string;
   content: string;
   created_at: string;
+  avatar_url?: string | null;
 
   reply_to_id?: string | null;
   reply_message?: Message | null;

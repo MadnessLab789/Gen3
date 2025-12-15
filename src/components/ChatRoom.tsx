@@ -14,6 +14,7 @@ type ChatMessageSelectRow = {
   telegram_id: number;
   room_id: string;
   username: string;
+  avatar_url?: string | null;
   content: string;
   created_at: string;
   reply_to_id?: string | null;
@@ -23,7 +24,7 @@ type ChatMessageSelectRow = {
 };
 
 const MESSAGE_SELECT =
-  'id, telegram_id, room_id, username, content, created_at, reply_to_id, reply_message:reply_to_id(id, telegram_id, room_id, username, content, created_at), message_reactions(user_id, reaction_type, message_id)';
+  'id, telegram_id, room_id, username, avatar_url, content, created_at, reply_to_id, reply_message:reply_to_id(id, telegram_id, room_id, username, avatar_url, content, created_at), message_reactions(user_id, reaction_type, message_id)';
 
 function normalizeMessageBase(row: ChatMessageSelectRow): Message {
   return {
@@ -31,6 +32,7 @@ function normalizeMessageBase(row: ChatMessageSelectRow): Message {
     telegram_id: row.telegram_id,
     room_id: row.room_id,
     username: row.username,
+    avatar_url: row.avatar_url ?? null,
     content: row.content,
     created_at: row.created_at,
     reply_to_id: row.reply_to_id ?? null,
@@ -84,6 +86,7 @@ export default function ChatRoom(props: {
   const [isSending, setIsSending] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(new Set());
+  const [brokenAvatarIds, setBrokenAvatarIds] = useState<Set<string>>(new Set());
 
   const endRef = useRef<HTMLDivElement | null>(null);
   const composerRef = useRef<HTMLDivElement | null>(null);
@@ -404,6 +407,11 @@ export default function ChatRoom(props: {
   };
 
   const isMine = (m: Message) => typeof effectiveUserId === 'number' && m.telegram_id === effectiveUserId;
+  const getInitial = (name: string) => {
+    const trimmed = (name ?? '').trim();
+    if (!trimmed) return '?';
+    return trimmed[0]?.toUpperCase?.() ?? '?';
+  };
 
   const title = roomId === 'global' ? '💬 Global Chat' : '💬 War Room Chat';
 
@@ -443,101 +451,132 @@ export default function ChatRoom(props: {
           const liked = Boolean(m.reactions?.user_has_liked);
           const likeCount = Math.max(0, m.reactions?.like_count ?? 0);
           const likePending = likePendingIds.has(m.id);
+          const avatarUrl = (m.avatar_url ?? '').trim();
+          const showAvatarImage = avatarUrl.length > 0 && !brokenAvatarIds.has(m.id);
           return (
             <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-[82%] rounded-2xl px-4 py-3 border ${
-                  mine
-                    ? 'bg-neon-green/15 border-neon-green/30'
-                    : 'bg-surface/60 border-white/10'
-                }`}
-                style={{ touchAction: 'pan-y' }}
-                onPointerDown={(e) => {
-                  // Right-swipe to reply (touch or mouse drag)
-                  swipeRef.current.pointerId = e.pointerId;
-                  swipeRef.current.startX = e.clientX;
-                  swipeRef.current.startY = e.clientY;
-                  swipeRef.current.triggered = false;
-                  swipeRef.current.messageId = m.id;
-                  try {
-                    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-                  } catch {
-                    // ignore
-                  }
-                }}
-                onPointerMove={(e) => {
-                  if (swipeRef.current.pointerId !== e.pointerId) return;
-                  if (swipeRef.current.triggered) return;
-                  if (swipeRef.current.messageId !== m.id) return;
-
-                  const dx = e.clientX - swipeRef.current.startX;
-                  const dy = e.clientY - swipeRef.current.startY;
-
-                  // Intent: horizontal swipe right, not vertical scroll
-                  if (dx > 56 && Math.abs(dy) < 24) {
-                    swipeRef.current.triggered = true;
-                    handleReply(m);
-                  }
-                }}
-                onPointerUp={(e) => {
-                  if (swipeRef.current.pointerId !== e.pointerId) return;
-                  swipeRef.current.pointerId = null;
-                  swipeRef.current.messageId = null;
-                  swipeRef.current.triggered = false;
-                }}
-                onPointerCancel={(e) => {
-                  if (swipeRef.current.pointerId !== e.pointerId) return;
-                  swipeRef.current.pointerId = null;
-                  swipeRef.current.messageId = null;
-                  swipeRef.current.triggered = false;
-                }}
-              >
-                <div className="flex items-center justify-between gap-3 mb-1">
-                  <span className={`text-xs font-semibold ${mine ? 'text-neon-green' : 'text-gray-300'}`}>
-                    {m.username || 'Anonymous'}
-                  </span>
-                  <span className="text-[10px] text-gray-500">{formatTime(m.created_at)}</span>
+              <div className="flex items-end gap-3">
+                <div
+                  className={`w-9 h-9 rounded-full shrink-0 overflow-hidden border ${
+                    mine ? 'border-neon-green/30 bg-neon-green/10' : 'border-neon-gold/25 bg-neon-purple/25'
+                  } flex items-center justify-center text-xs font-black text-white`}
+                  aria-label={`${m.username || 'Anonymous'} avatar`}
+                  title={m.username || 'Anonymous'}
+                >
+                  {showAvatarImage ? (
+                    <img
+                      src={avatarUrl}
+                      alt={`${m.username || 'Anonymous'} avatar`}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      onError={() => {
+                        setBrokenAvatarIds((prev) => {
+                          const next = new Set(prev);
+                          next.add(m.id);
+                          return next;
+                        });
+                      }}
+                    />
+                  ) : (
+                    <span className="select-none">{getInitial(m.username || 'Anonymous')}</span>
+                  )}
                 </div>
-                {m.reply_to_id && (
-                  <div className="mb-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
-                    <div className="text-[10px] text-gray-400 mb-0.5">
-                      Replying to{' '}
-                      <span className="text-neon-gold font-semibold">
-                        {m.reply_message?.username || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-gray-300/90 whitespace-pre-wrap break-words max-h-10 overflow-hidden">
-                      {m.reply_message?.content
-                        ? formatReplyPreview(m.reply_message.content)
-                        : 'Original message unavailable'}
-                    </div>
+
+                <div
+                  className={`max-w-[82%] rounded-2xl px-4 py-3 border ${
+                    mine
+                      ? 'bg-neon-green/15 border-neon-green/30'
+                      : 'bg-surface/60 border-white/10'
+                  }`}
+                  style={{ touchAction: 'pan-y' }}
+                  onPointerDown={(e) => {
+                    // Right-swipe to reply (touch or mouse drag)
+                    swipeRef.current.pointerId = e.pointerId;
+                    swipeRef.current.startX = e.clientX;
+                    swipeRef.current.startY = e.clientY;
+                    swipeRef.current.triggered = false;
+                    swipeRef.current.messageId = m.id;
+                    try {
+                      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  onPointerMove={(e) => {
+                    if (swipeRef.current.pointerId !== e.pointerId) return;
+                    if (swipeRef.current.triggered) return;
+                    if (swipeRef.current.messageId !== m.id) return;
+
+                    const dx = e.clientX - swipeRef.current.startX;
+                    const dy = e.clientY - swipeRef.current.startY;
+
+                    // Intent: horizontal swipe right, not vertical scroll
+                    if (dx > 56 && Math.abs(dy) < 24) {
+                      swipeRef.current.triggered = true;
+                      handleReply(m);
+                    }
+                  }}
+                  onPointerUp={(e) => {
+                    if (swipeRef.current.pointerId !== e.pointerId) return;
+                    swipeRef.current.pointerId = null;
+                    swipeRef.current.messageId = null;
+                    swipeRef.current.triggered = false;
+                  }}
+                  onPointerCancel={(e) => {
+                    if (swipeRef.current.pointerId !== e.pointerId) return;
+                    swipeRef.current.pointerId = null;
+                    swipeRef.current.messageId = null;
+                    swipeRef.current.triggered = false;
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <span className={`text-xs font-semibold ${mine ? 'text-neon-green' : 'text-gray-300'}`}>
+                      {m.username || 'Anonymous'}
+                    </span>
+                    <span className="text-[10px] text-gray-500">{formatTime(m.created_at)}</span>
                   </div>
-                )}
-                <div className="text-sm text-white whitespace-pre-wrap break-words">{m.content}</div>
+                  {m.reply_to_id && (
+                    <div className="mb-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2">
+                      <div className="text-[10px] text-gray-400 mb-0.5">
+                        Replying to{' '}
+                        <span className="text-neon-gold font-semibold">
+                          {m.reply_message?.username || 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-300/90 whitespace-pre-wrap break-words max-h-10 overflow-hidden">
+                        {m.reply_message?.content
+                          ? formatReplyPreview(m.reply_message.content)
+                          : 'Original message unavailable'}
+                      </div>
+                    </div>
+                  )}
+                  <div className="text-sm text-white whitespace-pre-wrap break-words">{m.content}</div>
 
-                <div className={`mt-2 flex items-center gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
-                  <button
-                    onClick={() => handleReply(m)}
-                    className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-neon-gold transition-colors"
-                    aria-label="Reply"
-                    title="Reply"
-                  >
-                    <CornerUpLeft className="w-4 h-4" />
-                    <span>Reply</span>
-                  </button>
+                  <div className={`mt-2 flex items-center gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
+                    <button
+                      onClick={() => handleReply(m)}
+                      className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-neon-gold transition-colors"
+                      aria-label="Reply"
+                      title="Reply"
+                    >
+                      <CornerUpLeft className="w-4 h-4" />
+                      <span>Reply</span>
+                    </button>
 
-                  <button
-                    onClick={() => void toggleLike(m)}
-                    disabled={!supabase || likePending || typeof effectiveUserId !== 'number'}
-                    className={`inline-flex items-center gap-1.5 text-[11px] transition-colors ${
-                      liked ? 'text-neon-gold' : 'text-gray-400 hover:text-neon-gold'
-                    } ${!devFallbackIdentity && (!supabase || typeof userId !== 'number') ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    aria-label="Like"
-                    title={liked ? 'Unlike' : 'Like'}
-                  >
-                    <Heart className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} />
-                    <span className="font-semibold">{likeCount}</span>
-                  </button>
+                    <button
+                      onClick={() => void toggleLike(m)}
+                      disabled={!supabase || likePending || typeof effectiveUserId !== 'number'}
+                      className={`inline-flex items-center gap-1.5 text-[11px] transition-colors ${
+                        liked ? 'text-neon-gold' : 'text-gray-400 hover:text-neon-gold'
+                      } ${!devFallbackIdentity && (!supabase || typeof userId !== 'number') ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      aria-label="Like"
+                      title={liked ? 'Unlike' : 'Like'}
+                    >
+                      <Heart className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} />
+                      <span className="font-semibold">{likeCount}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
