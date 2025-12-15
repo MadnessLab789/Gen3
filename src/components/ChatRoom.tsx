@@ -86,6 +86,8 @@ export default function ChatRoom(props: {
   const [likePendingIds, setLikePendingIds] = useState<Set<string>>(new Set());
 
   const endRef = useRef<HTMLDivElement | null>(null);
+  const composerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const messageIdsRef = useRef<Set<string>>(new Set());
   const swipeRef = useRef<{
     pointerId: number | null;
@@ -123,6 +125,25 @@ export default function ChatRoom(props: {
     } catch {
       // ignore
     }
+  };
+
+  const focusComposer = () => {
+    try {
+      composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    } catch {
+      // ignore
+    }
+    try {
+      inputRef.current?.focus();
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleReply = (message: Message) => {
+    setReplyingTo(message);
+    // Ensure the preview bar is rendered, then scroll + focus for best UX.
+    queueMicrotask(focusComposer);
   };
 
   useEffect(() => {
@@ -455,9 +476,7 @@ export default function ChatRoom(props: {
                   // Intent: horizontal swipe right, not vertical scroll
                   if (dx > 56 && Math.abs(dy) < 24) {
                     swipeRef.current.triggered = true;
-                    setReplyingTo(m);
-                    // UX: keep focus in composer
-                    queueMicrotask(scrollToBottom);
+                    handleReply(m);
                   }
                 }}
                 onPointerUp={(e) => {
@@ -498,7 +517,7 @@ export default function ChatRoom(props: {
 
                 <div className={`mt-2 flex items-center gap-3 ${mine ? 'justify-end' : 'justify-start'}`}>
                   <button
-                    onClick={() => setReplyingTo(m)}
+                    onClick={() => handleReply(m)}
                     className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-neon-gold transition-colors"
                     aria-label="Reply"
                     title="Reply"
@@ -528,7 +547,10 @@ export default function ChatRoom(props: {
       </div>
 
       {/* Composer */}
-      <div className="px-4 pb-5 pt-3 border-t border-white/10 bg-surface/80 backdrop-blur-md">
+      <div
+        ref={composerRef}
+        className="px-4 pb-5 pt-3 border-t border-white/10 bg-surface/80 backdrop-blur-md"
+      >
         {replyingTo && (
           <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-neon-gold/25 bg-black/30 px-3 py-2">
             <div className="min-w-0">
@@ -548,6 +570,7 @@ export default function ChatRoom(props: {
         )}
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
