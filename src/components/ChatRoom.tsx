@@ -17,7 +17,8 @@ type ChatMessageSelectRow = {
   content: string;
   created_at: string;
   reply_to_id?: string | null;
-  reply_message?: ChatMessageSelectRow | null;
+  // Supabase join shape can vary: one-to-one may still come back as an array depending on relation config.
+  reply_message?: ChatMessageSelectRow | ChatMessageSelectRow[] | null;
   message_reactions?: MessageReactionRow[] | null;
 };
 
@@ -41,7 +42,8 @@ function normalizeMessageBase(row: ChatMessageSelectRow): Message {
 function normalizeMessage(row: ChatMessageSelectRow, currentUserId: number | null): Message {
   const m = normalizeMessageBase(row);
 
-  const reply = row.reply_message ?? null;
+  const replyRaw = row.reply_message ?? null;
+  const reply = Array.isArray(replyRaw) ? (replyRaw[0] ?? null) : replyRaw;
   if (reply) {
     m.reply_message = {
       ...normalizeMessageBase(reply),
