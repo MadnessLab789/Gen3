@@ -456,12 +456,15 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         <span>Status: {signal.statusText}</span>
       </div>
 
-        <button
-          onClick={handlePlaceBet}
-          className="w-full mt-2 py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
-        >
-          Follow Bet
-        </button>
+        {/* TODO: Enable this button when Auto-Betting feature is ready */}
+        {false && (
+          <button
+            onClick={handlePlaceBet}
+            className="w-full mt-2 py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
+          >
+            Follow Bet
+          </button>
+        )}
       </div>
     </div>
   );
@@ -562,12 +565,15 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               >
                 Go to Channel for Discussion
               </button>
-              <button
-                onClick={handlePlaceBet}
-                className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
-              >
-                Follow Bet
-              </button>
+              {/* TODO: Enable this button when Auto-Betting feature is ready */}
+              {false && (
+                <button
+                  onClick={handlePlaceBet}
+                  className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
+                >
+                  Follow Bet
+                </button>
+              )}
             </div>
           </>
         )}
