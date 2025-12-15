@@ -49,14 +49,15 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
   );
 
   useEffect(() => {
-    if (!supabase || !isAuthenticated) {
+    const client = supabase;
+    if (!client || !isAuthenticated) {
       setFollowedTraderIds([]);
       return;
     }
 
     let cancelled = false;
     const loadFollows = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('trader_follows')
         .select('trader_id')
         .eq('telegram_id', userId as number);
@@ -84,7 +85,8 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
   }, [toast]);
 
   const toggleFollow = async (traderId: number) => {
-    if (!supabase || !isAuthenticated) {
+    const client = supabase;
+    if (!client || !isAuthenticated) {
       setToast('Please sign in via Telegram');
       return;
     }
@@ -96,7 +98,7 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
     setFollowedTraderIds(optimistic);
 
     if (wasFollowing) {
-      const { error } = await supabase
+      const { error } = await client
         .from('trader_follows')
         .delete()
         .eq('telegram_id', userId as number)
@@ -111,7 +113,7 @@ export default function CopyTrade({ userId }: CopyTradeProps) {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await client
       .from('trader_follows')
       .insert({ telegram_id: userId as number, trader_id: traderId });
 
