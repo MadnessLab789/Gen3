@@ -4,7 +4,7 @@ import { supabase } from '../supabaseClient';
 
 type ChatMessageRow = {
   id: number;
-  user_id: number;
+  telegram_id: number;
   username: string;
   content: string;
   created_at: string;
@@ -115,7 +115,7 @@ export default function ChatRoom(props: {
     try {
       const { data, error } = await sb
         .from('chat_messages')
-        .insert({ user_id: uid, username: uname, content })
+        .insert({ telegram_id: uid, username: uname, content })
         .select('*')
         .single();
 
@@ -142,7 +142,7 @@ export default function ChatRoom(props: {
     return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const isMine = (m: ChatMessageRow) => typeof userId === 'number' && m.user_id === userId;
+  const isMine = (m: ChatMessageRow) => typeof userId === 'number' && m.telegram_id === userId;
 
   return (
     <div className="min-h-screen bg-background text-white max-w-md mx-auto relative font-sans flex flex-col">
