@@ -407,13 +407,25 @@ function App() {
   const handleUpdateBalance = async (amount: number) => {
     if (!user || !supabase) return;
 
-    // 1. Calculate new balance
-    const newCoins = Number(user.coins) + amount;
+    // Always fetch the freshest balance from DB before applying delta (avoid trusting stale local state)
+    const { data: freshUser, error: fetchError } = await supabase
+      .from('users')
+      .select('coins, balance')
+      .eq('telegram_id', user.telegram_id)
+      .maybeSingle();
 
-    // 2. Optimistic UI update
-    setUser({ ...user, coins: newCoins });
+    if (fetchError) {
+      console.warn('[Balance] Failed to fetch fresh balance, fallback to local state:', fetchError);
+    }
 
-    // 3. Sync with DB
+    const currentCoins =
+      Number((freshUser as any)?.coins ?? (freshUser as any)?.balance ?? user.coins ?? 0) || 0;
+    const newCoins = currentCoins + amount;
+
+    // Optimistic UI update with the DB-fresh baseline
+    setUser((prev) => (prev ? { ...prev, coins: newCoins } : prev));
+
+    // Sync with DB (prefer coins column, fallback to balance if coins is missing)
     const updCoins = await supabase
       .from('users')
       .update({ coins: newCoins } as any)
@@ -421,7 +433,6 @@ function App() {
 
     if (!updCoins.error) return;
 
-    // fallback: balance column
     const msg = String(updCoins.error.message || '').toLowerCase();
     const coinsColumnMissing = msg.includes('column') && msg.includes('coins');
     if (coinsColumnMissing) {
