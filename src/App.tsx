@@ -506,6 +506,7 @@ function App() {
         onUpdateBalance={handleUpdateBalance}
         onVipPurchase={handleVipPurchase}
         isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
+        userBalance={user?.coins ?? 0}
       />
     );
   }

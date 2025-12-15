@@ -35,6 +35,7 @@ interface WarRoomProps {
   isVip?: boolean;
   chatUserId?: number | null;
   chatUsername?: string | null;
+  userBalance?: number;
 }
 
 type TabType = 'signals' | 'chat' | 'copyTrade';
@@ -127,10 +128,18 @@ interface BettingSheetProps {
   onBetAmountChange: (amount: number) => void;
   onConfirm: () => void;
   onClose: () => void;
+  userBalance: number;
 }
 
-function BettingSheet({ match, betAmount, onBetAmountChange, onConfirm, onClose }: BettingSheetProps) {
-  const balance = 1240; // Mock balance
+function BettingSheet({
+  match,
+  betAmount,
+  onBetAmountChange,
+  onConfirm,
+  onClose,
+  userBalance,
+}: BettingSheetProps) {
+  const balance = Number.isFinite(userBalance) ? Math.max(userBalance, 0) : 0;
   const quickAmounts = [10, 50, 100];
   const estimatedReturn = Math.round(betAmount * match.analysis.odds);
 
@@ -246,6 +255,7 @@ export default function WarRoom({
   isVip = false,
   chatUserId = null,
   chatUsername = null,
+  userBalance = 0,
 }: WarRoomProps) {
   const VIP_CHANNEL_URL = 'https://t.me/your_channel';
 
@@ -842,6 +852,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               onBetAmountChange={setBetAmount}
               onConfirm={handleConfirmBet}
               onClose={() => setShowBettingSlip(false)}
+              userBalance={userBalance}
             />
           </>
         )}
