@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, MessageSquare, TrendingUp, Users, Send, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import OddsChart from './OddsChart';
 import TraderProfile from './TraderProfile';
+import ChatRoom from './ChatRoom';
 
 interface Analysis {
   signal: string;
@@ -32,16 +33,11 @@ interface WarRoomProps {
   onUpdateBalance?: (amount: number) => void;
   onVipPurchase?: () => void | Promise<void>;
   isVip?: boolean;
+  chatUserId?: number | null;
+  chatUsername?: string | null;
 }
 
 type TabType = 'signals' | 'chat' | 'copyTrade';
-
-interface ChatMessage {
-  id: number;
-  user: string;
-  message: string;
-  time: string;
-}
 
 interface Trader {
   id: number;
@@ -78,13 +74,6 @@ interface SignalItem {
   stats?: string[];
   guruComment?: string;
 }
-
-const initialChatMessages: ChatMessage[] = [
-  { id: 1, user: 'WhaleHunter', message: 'All in Home!', time: '2m ago' },
-  { id: 2, user: 'SharpBet', message: 'Ref is blind!', time: '5m ago' },
-  { id: 3, user: 'ProTrader', message: 'Volume spike detected', time: '8m ago' },
-  { id: 4, user: 'OddsMaster', message: 'Line moved, still value', time: '12m ago' },
-];
 
 const MOCK_TRADERS: Trader[] = [
   // --- Safe / Consistent ---
@@ -428,12 +417,18 @@ function BettingSheet({ match, betAmount, onBetAmountChange, onConfirm, onClose 
   );
 }
 
-export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase, isVip = false }: WarRoomProps) {
+export default function WarRoom({
+  match,
+  onClose,
+  onUpdateBalance,
+  onVipPurchase,
+  isVip = false,
+  chatUserId = null,
+  chatUsername = null,
+}: WarRoomProps) {
   const VIP_CHANNEL_URL = 'https://t.me/your_channel';
 
   const [activeTab, setActiveTab] = useState<TabType>('signals');
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
-  const [inputText, setInputText] = useState('');
   const [following, setFollowing] = useState<number[]>([]);
   const [showBettingSlip, setShowBettingSlip] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
@@ -447,21 +442,12 @@ export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const tabs = [
     { id: 'signals' as TabType, label: 'Signals', icon: TrendingUp },
     { id: 'chat' as TabType, label: 'Chat', icon: MessageSquare },
     { id: 'copyTrade' as TabType, label: 'Copy Trade', icon: Users },
   ];
-
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (activeTab === 'chat' && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, activeTab]);
 
   // Auto-hide success message
   useEffect(() => {
@@ -502,19 +488,6 @@ export default function WarRoom({ match, onClose, onUpdateBalance, onVipPurchase
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
-
-  const handleSend = () => {
-    if (inputText.trim()) {
-      const newMessage: ChatMessage = {
-        id: messages.length + 1,
-        user: 'Me',
-        message: inputText.trim(),
-        time: 'now',
-      };
-      setMessages([...messages, newMessage]);
-      setInputText('');
-    }
-  };
 
   const handleFollow = (traderId: number) => {
     setFollowing((prev) =>
@@ -1012,38 +985,13 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
               className="space-y-3"
-              ref={chatContainerRef}
             >
-              {messages.map((msg) => {
-                const isMe = msg.user === 'Me';
-                return (
-                  <div
-                    key={msg.id}
-                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`rounded-lg p-3 border max-w-[80%] ${
-                        isMe
-                          ? 'bg-neon-blue/20 border-neon-blue/30'
-                          : 'bg-surface/60 border-white/5'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span
-                          className={`text-xs font-semibold ${
-                            isMe ? 'text-neon-blue' : 'text-neon-gold'
-                          }`}
-                        >
-                          {msg.user}
-                        </span>
-                        <span className="text-[10px] text-gray-500 ml-2">{msg.time}</span>
-                      </div>
-                      <p className="text-sm text-white">{msg.message}</p>
-                    </div>
-                  </div>
-                );
-              })}
-              <div ref={messagesEndRef} />
+              <ChatRoom
+                roomId="war-room"
+                userId={chatUserId}
+                username={chatUsername}
+                onBack={() => setActiveTab('signals')}
+              />
             </motion.div>
           )}
 
@@ -1111,33 +1059,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           )}
         </AnimatePresence>
       </div>
-
-      {/* Bottom Input / CTA */}
-      {activeTab === 'chat' && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-4 bg-surface/95 backdrop-blur-xl border-t border-white/10">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              placeholder="Type message..."
-              className="flex-1 bg-surface-highlight border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-neon-gold/50"
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleSend();
-                }
-              }}
-            />
-            <button
-              onClick={handleSend}
-              className="p-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black rounded-lg hover:shadow-lg hover:shadow-neon-gold/50 transition-all"
-            >
-              <Send size={18} />
-            </button>
-          </div>
-        </div>
-      )}
-
 
       {/* BettingSheet Modal */}
       <AnimatePresence>

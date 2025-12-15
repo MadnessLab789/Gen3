@@ -118,7 +118,7 @@ const INITIAL_MATCHES: Match[] = [
     time: "LIVE 12'",
     status: 'LIVE',
     score: '0-1',
-    isStarred: true,
+    isStarred: true, 
     tags: ['⚡️ Sniper Signal'],
     tagColor: 'neon-green',
     analysis: {
@@ -462,6 +462,8 @@ function App() {
           setActiveMatch(null);
           setCurrentView('home');
         }}
+        chatUserId={user?.id ?? null}
+        chatUsername={user?.username || user?.first_name || null}
         onUpdateBalance={handleUpdateBalance}
         onVipPurchase={handleVipPurchase}
         isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
@@ -472,6 +474,7 @@ function App() {
   if (currentView === 'chat') {
     return (
       <ChatRoom
+        roomId="global"
         userId={user?.id ?? null}
         username={user?.username || user?.first_name || null}
         onBack={() => setCurrentView('home')}
@@ -510,7 +513,7 @@ function App() {
           >
             HOME
           </button>
-          <button
+        <button
             onClick={() => {
               // Require Telegram environment + valid user
               const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
@@ -523,7 +526,7 @@ function App() {
             className="bg-surface-highlight px-3 py-3 rounded-lg text-xs font-mono border border-neon-gold/30 text-neon-gold hover:border-neon-gold/50 hover:bg-surface-highlight/80 transition-all"
           >
             CHAT
-          </button>
+        </button>
         </div>
       </div>
 
@@ -534,12 +537,12 @@ function App() {
               <Star size={12} fill="currentColor" />
               Watchlist & Signals
             </div>
-
+            
             <div className="space-y-4">
               {starredMatches.map((match) => (
-                <motion.div
+                <motion.div 
                   layoutId={`match-${match.id}`}
-                  key={match.id}
+                  key={match.id} 
                   className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
                 >
                   <div className="flex justify-between items-start mb-4">
@@ -572,7 +575,7 @@ function App() {
                         <span className="text-xs text-neon-blue font-mono">@ {match.analysis.odds}</span>
                       </div>
                     </div>
-
+                    
                     <div className="relative h-40 rounded-lg overflow-hidden mt-4 mb-4 border border-white/5 group-hover:border-neon-purple/50 transition-all bg-[#050B14]">
                       <div className="absolute bottom-[-20%] left-0 right-0 h-1/2 bg-neon-green/20 blur-[40px] rounded-full"></div>
                       <div className="absolute top-[-50%] left-[-20%] w-[140%] h-full bg-neon-blue/10 blur-[60px] rotate-12"></div>
@@ -608,7 +611,7 @@ function App() {
                     )}
                   </div>
 
-                  <button
+                  <button 
                     onClick={() => void handleEnterWarRoom(match)}
                     disabled={vipProcessingMatchId === match.id}
                     className="w-full mt-3 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-lg"
@@ -633,10 +636,10 @@ function App() {
         <h2 className="text-gray-500 text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2">
           <Clock size={12} /> Upcoming / Live
         </h2>
-
+        
         <div className="space-y-2">
           {unstarredMatches.map((match) => (
-            <motion.div
+            <motion.div 
               layoutId={`match-${match.id}`}
               key={match.id}
               className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
@@ -644,8 +647,8 @@ function App() {
             >
               <div className="flex items-center gap-4">
                 <div className="w-12 text-center border-r border-white/5 pr-3">
-                  <span className="text-xs font-mono text-gray-400 block">{match.time.replace('LIVE', '')}</span>
-                  {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
+                   <span className="text-xs font-mono text-gray-400 block">{match.time.replace('LIVE', '')}</span>
+                   {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
                 </div>
                 <div>
                   <div className="text-sm font-medium text-white mb-1">
@@ -671,9 +674,11 @@ function App() {
 
       <AnimatePresence>
         {currentView === 'home' && activeMatch && (
-          <WarRoom
-            match={activeMatch}
+          <WarRoom 
+            match={activeMatch} 
             onClose={() => setActiveMatch(null)}
+            chatUserId={user?.id ?? null}
+            chatUsername={user?.username || user?.first_name || null}
             onUpdateBalance={handleUpdateBalance}
             onVipPurchase={handleVipPurchase}
             isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}

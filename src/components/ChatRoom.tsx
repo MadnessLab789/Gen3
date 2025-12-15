@@ -5,17 +5,19 @@ import { supabase } from '../supabaseClient';
 type ChatMessageRow = {
   id: number;
   telegram_id: number;
+  room_id: string;
   username: string;
   content: string;
   created_at: string;
 };
 
 export default function ChatRoom(props: {
+  roomId?: string;
   userId: number | null;
   username: string | null;
   onBack: () => void;
 }) {
-  const { userId, username, onBack } = props;
+  const { userId, username, onBack, roomId = 'global' } = props;
 
   const [messages, setMessages] = useState<ChatMessageRow[]>([]);
   const [input, setInput] = useState('');
@@ -53,6 +55,7 @@ export default function ChatRoom(props: {
       const { data, error } = await sb
         .from('chat_messages')
         .select('*')
+        .eq('room_id', roomId)
         .order('created_at', { ascending: false })
         .limit(50);
 
@@ -71,10 +74,10 @@ export default function ChatRoom(props: {
     void loadHistory();
 
     const channel = sb
-      .channel('global-chat-messages')
+      .channel(`chat-messages-${roomId}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages' },
+        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
         (payload: any) => {
           const row = payload?.new as ChatMessageRow | undefined;
           if (!row || typeof row.id !== 'number') return;
@@ -96,7 +99,7 @@ export default function ChatRoom(props: {
         // ignore
       }
     };
-  }, []);
+  }, [roomId]);
 
   const handleSend = async () => {
     const sb = supabase;
@@ -115,7 +118,7 @@ export default function ChatRoom(props: {
     try {
       const { data, error } = await sb
         .from('chat_messages')
-        .insert({ telegram_id: uid, username: uname, content })
+        .insert({ telegram_id: uid, room_id: roomId, username: uname, content })
         .select('*')
         .single();
 
@@ -144,6 +147,8 @@ export default function ChatRoom(props: {
 
   const isMine = (m: ChatMessageRow) => typeof userId === 'number' && m.telegram_id === userId;
 
+  const title = roomId === 'global' ? '💬 Global Chat' : '💬 War Room Chat';
+
   return (
     <div className="min-h-screen bg-background text-white max-w-md mx-auto relative font-sans flex flex-col">
       {/* Header */}
@@ -156,7 +161,7 @@ export default function ChatRoom(props: {
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <div className="text-lg font-black text-neon-gold">💬 Global Chat</div>
+          <div className="text-lg font-black text-neon-gold">{title}</div>
         </div>
       </div>
 
