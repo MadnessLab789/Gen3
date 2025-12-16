@@ -700,6 +700,41 @@ function App() {
                     <div className="relative h-40 rounded-lg overflow-hidden mt-4 mb-4 border border-white/5 group-hover:border-neon-purple/50 transition-all bg-[#050B14]">
                       <div className="absolute bottom-[-20%] left-0 right-0 h-1/2 bg-neon-green/20 blur-[40px] rounded-full"></div>
                       <div className="absolute top-[-50%] left-[-20%] w-[140%] h-full bg-neon-blue/10 blur-[60px] rotate-12"></div>
+                      {(match.home_logo || match.away_logo || match.league_logo) && (
+                        <>
+                          {/* Poster-style background using team logos (no external stadium image needed) */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-black/55 via-black/10 to-black/70"></div>
+                          <div className="absolute inset-0 flex items-center justify-center gap-10 opacity-80">
+                            {match.home_logo ? (
+                              <img
+                                src={match.home_logo}
+                                alt={match.home}
+                                className="w-40 h-40 object-contain opacity-20 blur-[0.5px] -rotate-6 -translate-x-2"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : null}
+                            {match.away_logo ? (
+                              <img
+                                src={match.away_logo}
+                                alt={match.away}
+                                className="w-40 h-40 object-contain opacity-20 blur-[0.5px] rotate-6 translate-x-2"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : null}
+                          </div>
+                          {match.league_logo ? (
+                            <img
+                              src={match.league_logo}
+                              alt={match.league}
+                              className="absolute top-3 right-3 w-8 h-8 object-contain opacity-25 grayscale"
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                        </>
+                      )}
                       <div
                         className="absolute inset-0 opacity-20"
                         style={{
