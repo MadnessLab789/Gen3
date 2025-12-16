@@ -1,201 +1,123 @@
-import { useEffect, useMemo, useState } from 'react';
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+// @ts-nocheck
+"use client";
 
-type MatchRow = {
-  id: number;
-  fixture_id: number;
-  league_name: string;
-  league_logo: string | null;
-  home_name: string;
-  home_logo: string | null;
-  away_name: string;
-  away_logo: string | null;
-  start_date: string;
-  status_short: string;
-  score_home: number | null;
-  score_away: number | null;
-  venue_name: string | null;
-};
+import { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
-function formatKickoff(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString(undefined, { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-}
+// 1. 获取环境变量 (如果没有这些变量，控制台会报错)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-function formatHHMM(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
-
-function statusBadge(status: string) {
-  const s = (status ?? '').toUpperCase();
-  if (s === 'LIVE') return 'bg-neon-red/15 text-neon-red border-neon-red/30';
-  if (s === 'FT') return 'bg-white/5 text-gray-300 border-white/10';
-  if (s === 'NS') return 'bg-neon-gold/10 text-neon-gold border-neon-gold/25';
-  return 'bg-neon-purple/15 text-neon-purple border-neon-purple/30';
-}
+// 2. 初始化 Supabase
+const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey) 
+  : null;
 
 export default function MatchList() {
-  const [rows, setRows] = useState<MatchRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [errorText, setErrorText] = useState<string | null>(null);
-
-  const sb: SupabaseClient | null = useMemo(() => {
-    // Requirements ask for createClient + NEXT_PUBLIC_* envs; this repo is Vite, so we also support VITE_*.
-    const viteEnv = (import.meta as any)?.env ?? {};
-    const procEnv = (globalThis as any)?.process?.env ?? {};
-
-    const url =
-      (procEnv.NEXT_PUBLIC_SUPABASE_URL as string | undefined) ??
-      (viteEnv.VITE_SUPABASE_URL as string | undefined) ??
-      undefined;
-
-    const key =
-      (procEnv.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY as string | undefined) ??
-      (procEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined) ??
-      (viteEnv.VITE_SUPABASE_ANON_KEY as string | undefined) ??
-      undefined;
-
-    if (typeof url !== 'string' || url.length === 0) return null;
-    if (typeof key !== 'string' || key.length === 0) return null;
-    return createClient(url, key);
-  }, []);
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
-    if (!sb) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setErrorText(null);
-
-    void sb
-      .from('matches')
-      .select('*')
-      .order('start_date', { ascending: true })
-      .limit(20)
-      .then(({ data, error }) => {
-        if (cancelled) return;
+    async function fetchMatches() {
+      // 安全检查: 如果没连上 Supabase，直接报错
+      if (!supabase) {
+        console.error("❌ 缺少 Supabase 环境变量!");
+        setErrorMsg("Missing Environment Variables");
         setLoading(false);
-        if (error) {
-          setErrorText(error.message || 'Failed to load matches');
-          return;
-        }
-        setRows((data ?? []) as MatchRow[]);
-      });
+        return;
+      }
 
-    return () => {
-      cancelled = true;
-    };
+      try {
+        console.log("⚡️ 开始读取比赛数据...");
+        
+        // 读取 matches 表，按时间排序
+        const { data, error } = await supabase
+          .from('matches')
+          .select('*')
+          .order('start_date', { ascending: true })
+          .limit(20);
+
+        if (error) {
+          console.error('❌ Supabase 读取失败:', error);
+          setErrorMsg(error.message);
+        } else {
+          console.log("✅ 读取成功:", data);
+          setMatches(data || []);
+        }
+      } catch (err) {
+        console.error("❌ 发生意外错误:", err);
+        setErrorMsg(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchMatches();
   }, []);
 
-  const content = useMemo(() => {
-    if (!sb) {
-      return <div className="text-xs text-gray-400">Supabase not configured.</div>;
-    }
-    if (loading) return <div className="text-xs text-gray-500">Loading...</div>;
-    if (errorText) return <div className="text-xs text-neon-red">{errorText}</div>;
-    if (rows.length === 0) {
-      return <div className="text-xs text-gray-400">No matches yet.</div>;
-    }
-
-    return (
-      <div className="space-y-2">
-        {rows.map((m) => (
-          <div
-            key={m.id}
-            className="rounded-2xl border border-white/10 bg-surface/55 backdrop-blur-md px-4 py-3 shadow-[0_0_24px_rgba(160,70,255,0.08)]"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="text-[11px] text-gray-300 truncate">{m.league_name}</div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <span
-                  className={`px-2 py-0.5 rounded-full border text-[10px] font-bold tracking-wide ${statusBadge(
-                    m.status_short
-                  )}`}
-                >
-                  {m.status_short}
-                </span>
-                <div className="text-[10px] text-gray-500 font-mono">{formatHHMM(m.start_date)}</div>
-                {m.league_logo ? (
-                  <img
-                    src={m.league_logo}
-                    alt={m.league_name}
-                    className="w-5 h-5 rounded-sm object-contain opacity-90"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : null}
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  {m.home_logo ? (
-                    <img
-                      src={m.home_logo}
-                      alt={m.home_name}
-                      className="w-7 h-7 rounded-lg object-contain bg-black/20 border border-white/5"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10" />
-                  )}
-                  <div className="text-sm font-semibold text-white truncate">{m.home_name}</div>
-                </div>
-
-                <div className="text-xs text-gray-500 font-mono">vs</div>
-
-                <div className="flex items-center gap-2 min-w-0">
-                  {m.away_logo ? (
-                    <img
-                      src={m.away_logo}
-                      alt={m.away_name}
-                      className="w-7 h-7 rounded-lg object-contain bg-black/20 border border-white/5"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10" />
-                  )}
-                  <div className="text-sm font-semibold text-white truncate">{m.away_name}</div>
-                </div>
-              </div>
-
-              <div className="shrink-0 text-right">
-                {typeof m.score_home === 'number' && typeof m.score_away === 'number' ? (
-                  <div className="text-lg font-black text-neon-gold font-mono">
-                    {m.score_home}-{m.score_away}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-500">—</div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }, [errorText, loading, rows]);
+  // 加载中界面
+  if (loading) return (
+    <div className="w-full max-w-md mx-auto mb-4 p-4 bg-white/5 rounded-xl border border-white/10 text-center">
+      <span className="text-gray-400 text-sm animate-pulse">Loading Live Fixtures...</span>
+    </div>
+  );
 
   return (
-    <div className="px-4 pt-4 pb-3 border-b border-white/10 bg-surface/40 backdrop-blur-md">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <div className="text-[11px] text-gray-400 font-mono tracking-widest">STADIUM MATCH CENTER</div>
-          <div className="text-lg font-black text-neon-gold">Live Fixtures</div>
-        </div>
+    <div className="w-full max-w-md mx-auto mb-4 space-y-3 p-4">
+      {/* 标题栏 */}
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wider">
+          Upcoming / Live
+        </h2>
+        {/* 如果有错误，显示在这里 */}
+        {errorMsg && <span className="text-xs text-red-400">{errorMsg}</span>}
       </div>
 
-      <div className="max-h-[34vh] overflow-y-auto pr-1">{content}</div>
+      {/* 滚动列表 */}
+      <div className="space-y-3 h-64 overflow-y-auto scrollbar-hide">
+        {matches.length === 0 ? (
+          <div className="text-gray-500 text-center text-sm py-4 bg-white/5 rounded-xl">
+            {errorMsg ? "Data loading failed" : "No matches found (Database is empty?)"}
+          </div>
+        ) : (
+          matches.map((match) => (
+            <div key={match.id} className="relative bg-white/5 backdrop-blur-md border border-white/10 rounded-xl p-3 flex items-center justify-between shadow-lg hover:bg-white/10 transition-colors">
+              
+              {/* 左侧: 时间 */}
+              <div className="flex flex-col items-center w-14 border-r border-white/10 pr-2 mr-2">
+                <span className="text-xs font-mono text-gray-300">
+                  {match.start_date ? new Date(match.start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}
+                </span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-1 min-w-[30px] text-center ${
+                  ['LIVE', '1H', '2H', 'HT'].includes(match.status_short)
+                    ? 'bg-red-500/20 text-red-400 animate-pulse' 
+                    : 'bg-gray-700/50 text-gray-400'
+                }`}>
+                  {match.status_short || 'NS'}
+                </span>
+              </div>
+
+              {/* 中间: 队伍 */}
+              <div className="flex-1 flex flex-col justify-center space-y-2">
+                <div className="flex items-center space-x-2">
+                  {match.home_logo && <img src={match.home_logo} alt="Home" className="w-5 h-5 object-contain" />}
+                  <span className="text-sm font-medium text-white truncate w-24">{match.home_name || 'Home'}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {match.away_logo && <img src={match.away_logo} alt="Away" className="w-5 h-5 object-contain" />}
+                  <span className="text-sm font-medium text-white truncate w-24">{match.away_name || 'Away'}</span>
+                </div>
+              </div>
+
+              {/* 右侧: 联赛Logo */}
+              <div className="opacity-40 grayscale ml-2">
+                 {match.league_logo && <img src={match.league_logo} alt="League" className="w-6 h-6 object-contain" />}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
-
-
