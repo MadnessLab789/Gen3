@@ -181,6 +181,7 @@ export default function ChatRoom(props: {
     };
 
     const loadHistory = async () => {
+      console.log('[ChatRoom] Loading history for room:', roomId);
       const base = sb.from('chat_messages').select(MESSAGE_SELECT).order('created_at', { ascending: false });
       const query =
         roomId === 'global'
@@ -192,12 +193,15 @@ export default function ChatRoom(props: {
       if (cancelled) return;
       if (error) {
         console.error('[ChatRoom] Failed to load chat history:', error);
+        console.error('[ChatRoom] Error details:', JSON.stringify(error, null, 2));
         return;
       }
 
+      console.log('[ChatRoom] Loaded messages count:', data?.length || 0);
       const rows = (data ?? []) as ChatMessageSelectRow[];
       const normalized = rows.map((r) => normalizeMessage(r, currentUserIdForReactions));
       normalized.reverse(); // show oldest -> newest
+      console.log('[ChatRoom] Normalized messages count:', normalized.length);
       setMessages(normalized);
       queueMicrotask(scrollToBottom);
     };
