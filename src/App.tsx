@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
+import MatchList from './components/MatchList';
 
 declare global {
   interface Window {
@@ -527,12 +528,17 @@ function App() {
 
   if (currentView === 'chat') {
     return (
-      <ChatRoom
-        roomId="global"
-        userId={user?.id ?? null}
-        username={user?.username || user?.first_name || null}
-        onBack={() => setCurrentView('home')}
-      />
+      <div className="min-h-screen bg-background text-white max-w-md mx-auto relative font-sans flex flex-col">
+        <MatchList />
+        <div className="flex-1">
+          <ChatRoom
+            roomId="global"
+            userId={user?.id ?? null}
+            username={user?.username || user?.first_name || null}
+            onBack={() => setCurrentView('home')}
+          />
+        </div>
+      </div>
     );
   }
 

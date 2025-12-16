@@ -109,8 +109,42 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 2) Parse request payload (choose script set + probability)
-    const body = (await req.json().catch(() => ({}))) as any;
+    // 2) Parse request payload (Payload Mode)
+    // If caller provides (content, nickname, sender_id), we prioritize that payload.
+    // If body is empty/invalid (cron), we fall back to the random bot behavior.
+    const body = (await req.json().catch(() => null)) as any;
+
+    const hasPayload =
+      body &&
+      typeof body.content === 'string' &&
+      body.content.trim().length > 0 &&
+      typeof body.nickname === 'string' &&
+      body.nickname.trim().length > 0 &&
+      typeof body.sender_id === 'number' &&
+      Number.isFinite(body.sender_id);
+
+    // 3) Init Supabase client (Service Role to bypass RLS writes)
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+
+    if (hasPayload) {
+      const sender_type =
+        body?.sender_type === 'user' || body?.sender_type === 'bot' ? (body.sender_type as 'user' | 'bot') : 'bot';
+      const avatar_url = typeof body?.avatar_url === 'string' && body.avatar_url.trim().length > 0 ? body.avatar_url : null;
+
+      const { error } = await insertMessage({
+        supabase,
+        sender_id: body.sender_id,
+        sender_type,
+        nickname: body.nickname,
+        avatar_url,
+        content: body.content,
+      });
+
+      if (error) throw error;
+      return json({ success: true, mode: 'payload', sender_id: body.sender_id, sender_type, nickname: body.nickname });
+    }
+
+    // 3b) Random mode (cron/default): choose script set + probability
     const room_id = body?.room_id === 'war-room' ? 'war-room' : 'global';
     const send_probability_raw = Number(body?.send_probability ?? 1.0);
     const send_probability =
@@ -123,12 +157,9 @@ Deno.serve(async (req) => {
       return json({ success: true, skipped: true, room: room_id });
     }
 
-    // 3) Choose script by room
+    // 4) Choose script by room
     const selectedPersona = room_id === 'war-room' ? pickRandom(WAR_ROOM_BOTS) : pickRandom(GLOBAL_BOTS);
     const selectedMessage = room_id === 'war-room' ? pickRandom(WAR_ROOM_MESSAGES) : pickRandom(GLOBAL_MESSAGES);
-
-    // 4) Init Supabase client (Service Role to bypass RLS writes)
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     // 5) Insert into DB
     const { error } = await insertMessage({
@@ -142,7 +173,7 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    return json({ success: true, room: room_id, bot: selectedPersona.name });
+    return json({ success: true, mode: 'random', room: room_id, bot: selectedPersona.name });
   } catch (error: any) {
     return json({ success: false, error: error?.message ?? String(error) }, 500);
   }
