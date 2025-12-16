@@ -57,6 +57,9 @@ interface Match {
   time: string;
   status: 'LIVE' | 'PRE_MATCH';
   score?: string;
+  home_logo?: string | null;
+  away_logo?: string | null;
+  league_logo?: string | null;
   isStarred: boolean;
   tags: string[];
   tagColor?: string;
@@ -440,6 +443,9 @@ function App() {
           time: status === 'LIVE' ? 'LIVE' : formatHHMM(m.start_date),
           status,
           score,
+          home_logo: m.home_logo,
+          away_logo: m.away_logo,
+          league_logo: m.league_logo,
           isStarred: false,
           tags: [],
           analysis: {
@@ -768,8 +774,28 @@ function App() {
                   </div>
                 </div>
 
-                <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors">
-                  <Star size={18} />
+                <div className="flex items-center gap-2 p-2">
+                  {match.home_logo ? (
+                    <img
+                      src={match.home_logo}
+                      alt={match.home}
+                      className="w-5 h-5 object-contain opacity-90"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : null}
+                  {match.away_logo ? (
+                    <img
+                      src={match.away_logo}
+                      alt={match.away}
+                      className="w-5 h-5 object-contain opacity-90"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : null}
+                  <div className="text-gray-600 group-hover:text-neon-gold transition-colors">
+                    <Star size={18} />
+                  </div>
                 </div>
               </motion.div>
             ))
