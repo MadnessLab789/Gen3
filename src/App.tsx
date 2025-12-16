@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@supabase/supabase-js';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
 import MatchList from './components/MatchList';
+import { supabase } from './supabaseClient';
 
 declare global {
   interface Window {
@@ -64,24 +64,39 @@ interface Match {
   chartData: any[];
 }
 
-// --- Supabase Config ---
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? undefined;
-const SUPABASE_ANON_KEY =
-  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? undefined;
-
-const supabase =
-  typeof SUPABASE_URL === 'string' &&
-  SUPABASE_URL.length > 0 &&
-  typeof SUPABASE_ANON_KEY === 'string' &&
-  SUPABASE_ANON_KEY.length > 0
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+type DbMatchRow = {
+  id: number;
+  fixture_id: number;
+  league_name: string;
+  league_logo: string | null;
+  home_name: string;
+  home_logo: string | null;
+  away_name: string;
+  away_logo: string | null;
+  start_date: string;
+  status_short: string;
+  score_home: number | null;
+  score_away: number | null;
+  venue_name: string | null;
+};
 
 // --- Helper Functions ---
 function parseReferrerId(startParam: unknown): number | null {
   if (typeof startParam !== 'string') return null;
   const match = /^ref_(\d+)$/.exec(startParam);
   return match ? Number(match[1]) : null;
+}
+
+function formatHHMM(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function toUiStatus(statusShort: string): Match['status'] {
+  const s = String(statusShort || '').toUpperCase();
+  if (['LIVE', '1H', '2H', 'HT', 'ET', 'P', 'BT'].includes(s)) return 'LIVE';
+  return 'PRE_MATCH';
 }
 
 const generateWaveData = () => {
@@ -91,78 +106,20 @@ const generateWaveData = () => {
   }));
 };
 
-const refreshData = (setMatchesFn: (matches: Match[]) => void) => {
-  // Simple refresh stub: regenerate mock chart data to simulate fresh odds/metrics
-  setMatchesFn(
-    INITIAL_MATCHES.map((m) => ({
+const refreshData = (setMatchesFn: (updater: (prev: Match[]) => Match[]) => void) => {
+  // Simple refresh stub: regenerate chart data to simulate fresh odds/metrics
+  setMatchesFn((prev) =>
+    prev.map((m) => ({
       ...m,
       chartData: generateWaveData(),
     }))
   );
 };
 
-// --- Mock Data ---
-const INITIAL_MATCHES: Match[] = [
-  {
-    id: 1,
-    league: 'Champions League',
-    home: 'Arsenal',
-    away: 'PSG',
-    time: '20:45',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['🔥 High Vol', '🐳 Whale Alert'],
-    tagColor: 'neon-purple',
-    analysis: {
-      signal: 'OVER 2.5',
-      odds: 1.95,
-      confidence: 88,
-      guruComment: 'Market indicates heavy volume on Over.',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 2,
-    league: 'Premier League',
-    home: 'Man City',
-    away: 'Liverpool',
-    time: "LIVE 12'",
-    status: 'LIVE',
-    score: '0-1',
-    isStarred: true, 
-    tags: ['⚡️ Sniper Signal'],
-    tagColor: 'neon-green',
-    analysis: {
-      signal: 'HOME WIN',
-      odds: 2.1,
-      confidence: 92,
-      guruComment: 'Early goal implies strong home comeback.',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 3,
-    league: 'La Liga',
-    home: 'Real Madrid',
-    away: 'Getafe',
-    time: '22:00',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['🔒 Defense Heavy'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'UNDER 3.5',
-      odds: 1.5,
-      confidence: 75,
-      guruComment: 'Defensive lineup confirmed.',
-    },
-    chartData: generateWaveData(),
-  },
-];
-
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [matches, setMatches] = useState<Match[]>(INITIAL_MATCHES);
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState<boolean>(true);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [currentView, setCurrentView] = useState<'home' | 'warroom' | 'chat'>('home');
   const [showWallet, setShowWallet] = useState(false);
@@ -170,6 +127,7 @@ function App() {
   const [bannerMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [vipProcessingMatchId, setVipProcessingMatchId] = useState<number | null>(null);
+  const sb = supabase;
 
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
@@ -228,7 +186,6 @@ function App() {
       return;
     }
 
-    const sb = supabase;
     if (!sb) {
       tg.showAlert?.('Supabase not ready. Please try again.') ??
         window.alert('Supabase not ready. Please try again.');
@@ -337,7 +294,7 @@ function App() {
           photo_url: '',
         };
 
-      if (!supabase) {
+      if (!sb) {
         console.error('Supabase client not initialized.');
         setIsLoading(false);
         return;
@@ -355,7 +312,7 @@ function App() {
         // 关键逻辑：启动时确保 users 表存在该 telegram_id 记录
         // - 不存在：insert（默认 coins/balance=0）
         // - 存在：update username/first_name（防止改名）
-        const { data: existing, error: existingError } = await supabase
+        const { data: existing, error: existingError } = await sb
           .from('users')
           .select('*')
           .eq('telegram_id', telegramId)
@@ -365,7 +322,7 @@ function App() {
 
         if (!existing) {
           // 优先尝试插入 coins（新 schema），如果列不存在则 fallback balance（旧 schema）
-          const tryCoins = await supabase.from('users').insert({
+          const tryCoins = await sb.from('users').insert({
             telegram_id: telegramId,
             username,
             first_name: firstName,
@@ -382,7 +339,7 @@ function App() {
 
             // 如果是因为列不存在导致失败，尝试最小字段 + balance
             if (coinsColumnMissing || isVipColumnMissing || photoColumnMissing) {
-              const tryBalance = await supabase.from('users').insert({
+              const tryBalance = await sb.from('users').insert({
                 telegram_id: telegramId,
                 username,
                 first_name: firstName,
@@ -396,7 +353,7 @@ function App() {
           }
         } else {
           // 更新改名（只更新最常见字段，避免列不存在）
-          const upd = await supabase
+          const upd = await sb
             .from('users')
             .update({ username, first_name: firstName } as any)
             .eq('telegram_id', telegramId);
@@ -404,7 +361,7 @@ function App() {
         }
 
         // 拉取最新余额（兼容 coins/balance），并映射到前端 user.coins
-        const { data: row, error: rowError } = await supabase
+        const { data: row, error: rowError } = await sb
           .from('users')
           .select('*')
           .eq('telegram_id', telegramId)
@@ -444,12 +401,72 @@ function App() {
     initApp();
   }, []);
 
+  // --- Matches (live) ---
+  useEffect(() => {
+    let cancelled = false;
+    const loadMatches = async () => {
+      if (!sb) {
+        setMatchesLoading(false);
+        return;
+      }
+      setMatchesLoading(true);
+      const { data, error } = await sb
+        .from('matches')
+        .select('*')
+        .order('start_date', { ascending: true })
+        .limit(20);
+
+      if (cancelled) return;
+
+      if (error || !data) {
+        console.warn('[matches] load failed:', error);
+        setMatches([]);
+        setMatchesLoading(false);
+        return;
+      }
+
+      const mapped = (data as DbMatchRow[]).map((m) => {
+        const status = toUiStatus(m.status_short);
+        const score =
+          typeof m.score_home === 'number' && typeof m.score_away === 'number'
+            ? `${m.score_home}-${m.score_away}`
+            : undefined;
+
+        return {
+          id: Number(m.fixture_id || m.id),
+          league: m.league_name,
+          home: m.home_name,
+          away: m.away_name,
+          time: status === 'LIVE' ? 'LIVE' : formatHHMM(m.start_date),
+          status,
+          score,
+          isStarred: false,
+          tags: [],
+          analysis: {
+            signal: '—',
+            odds: 0,
+            confidence: 0,
+          },
+          chartData: generateWaveData(),
+        } satisfies Match;
+      });
+
+      setMatches(mapped);
+      setMatchesLoading(false);
+    };
+
+    void loadMatches();
+    return () => {
+      cancelled = true;
+    };
+  }, [sb]);
+
   // --- Balance Update Logic ---
   const handleUpdateBalance = async (amount: number) => {
-    if (!user || !supabase) return;
+    if (!user || !sb) return;
 
     // Always fetch latest coins from DB before applying the delta to avoid stale local state
-    const { data: freshUser, error: freshError } = await supabase
+    const { data: freshUser, error: freshError } = await sb
       .from('users')
       .select('coins, balance')
       .eq('telegram_id', user.telegram_id)
@@ -468,7 +485,7 @@ function App() {
     setUser({ ...user, coins: newCoins });
 
     // 3. Sync with DB
-    const updCoins = await supabase
+    const updCoins = await sb
       .from('users')
       .update({ coins: newCoins } as any)
       .eq('telegram_id', user.telegram_id);
@@ -479,7 +496,7 @@ function App() {
     const msg = String(updCoins.error.message || '').toLowerCase();
     const coinsColumnMissing = msg.includes('column') && msg.includes('coins');
     if (coinsColumnMissing) {
-      const updBal = await supabase
+      const updBal = await sb
         .from('users')
         .update({ balance: newCoins } as any)
         .eq('telegram_id', user.telegram_id);
@@ -618,12 +635,12 @@ function App() {
               <Star size={12} fill="currentColor" />
               Watchlist & Signals
             </div>
-            
+
             <div className="space-y-4">
               {starredMatches.map((match) => (
-                <motion.div 
+                <motion.div
                   layoutId={`match-${match.id}`}
-                  key={match.id} 
+                  key={match.id}
                   className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
                 >
                   <div className="flex justify-between items-start mb-4">
@@ -656,7 +673,7 @@ function App() {
                         <span className="text-xs text-neon-blue font-mono">@ {match.analysis.odds}</span>
                       </div>
                     </div>
-                    
+
                     <div className="relative h-40 rounded-lg overflow-hidden mt-4 mb-4 border border-white/5 group-hover:border-neon-purple/50 transition-all bg-[#050B14]">
                       <div className="absolute bottom-[-20%] left-0 right-0 h-1/2 bg-neon-green/20 blur-[40px] rounded-full"></div>
                       <div className="absolute top-[-50%] left-[-20%] w-[140%] h-full bg-neon-blue/10 blur-[60px] rotate-12"></div>
@@ -692,7 +709,7 @@ function App() {
                     )}
                   </div>
 
-                  <button 
+                  <button
                     onClick={() => void handleEnterWarRoom(match)}
                     disabled={vipProcessingMatchId === match.id}
                     className="w-full mt-3 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-lg"
@@ -719,37 +736,44 @@ function App() {
         </h2>
         
         <div className="space-y-2">
-          {unstarredMatches.map((match) => (
-            <motion.div 
-              layoutId={`match-${match.id}`}
-              key={match.id}
-              className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
-              onClick={() => toggleStar(match.id)}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 text-center border-r border-white/5 pr-3">
-                   <span className="text-xs font-mono text-gray-400 block">{match.time.replace('LIVE', '')}</span>
-                   {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-white mb-1">
-                    {match.home} <span className="text-gray-600">vs</span> {match.away}
+          {matchesLoading ? (
+            <div className="text-xs text-gray-400">Loading...</div>
+          ) : (
+            unstarredMatches.map((match) => (
+              <motion.div
+                layoutId={`match-${match.id}`}
+                key={match.id}
+                className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
+                onClick={() => toggleStar(match.id)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 text-center border-r border-white/5 pr-3">
+                    <span className="text-xs font-mono text-gray-400 block">{match.time}</span>
+                    {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
                   </div>
-                  <div className="flex gap-2">
-                    {match.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10">
-                        {tag}
-                      </span>
-                    ))}
+                  <div>
+                    <div className="text-sm font-medium text-white mb-1">
+                      {match.home} <span className="text-gray-600">vs</span> {match.away}
+                    </div>
+                    <div className="flex gap-2">
+                      {match.tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors">
-                <Star size={18} />
-              </div>
-            </motion.div>
-          ))}
+                <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors">
+                  <Star size={18} />
+                </div>
+              </motion.div>
+            ))
+          )}
         </div>
       </div>
 
