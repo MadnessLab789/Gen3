@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
@@ -521,6 +521,23 @@ function App() {
 
   const starredMatches = matches.filter((m) => m.isStarred);
   const unstarredMatches = matches.filter((m) => !m.isStarred);
+  const groupedUnstarred = useMemo(() => {
+    // Preserve the incoming order (already sorted by start_date asc) while grouping by league.
+    const groups: { league: string; league_logo?: string | null; matches: Match[] }[] = [];
+    const idx = new Map<string, number>();
+    for (const m of unstarredMatches) {
+      const key = (m.league || 'Unknown').trim() || 'Unknown';
+      const existing = idx.get(key);
+      if (existing === undefined) {
+        idx.set(key, groups.length);
+        groups.push({ league: key, league_logo: m.league_logo ?? null, matches: [m] });
+      } else {
+        groups[existing]!.matches.push(m);
+        if (!groups[existing]!.league_logo && m.league_logo) groups[existing]!.league_logo = m.league_logo;
+      }
+    }
+    return groups;
+  }, [unstarredMatches]);
 
   if (isLoading) {
     return (
@@ -741,63 +758,93 @@ function App() {
           <Clock size={12} /> Upcoming / Live
         </h2>
         
-        <div className="space-y-2">
+        <div className="space-y-4">
           {matchesLoading ? (
             <div className="text-xs text-gray-400">Loading...</div>
           ) : (
-            unstarredMatches.map((match) => (
-              <motion.div
-                layoutId={`match-${match.id}`}
-                key={match.id}
-                className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
-                onClick={() => toggleStar(match.id)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 text-center border-r border-white/5 pr-3">
-                    <span className="text-xs font-mono text-gray-400 block">{match.time}</span>
-                    {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-white mb-1">
-                      {match.home} <span className="text-gray-600">vs</span> {match.away}
-                    </div>
-                    <div className="flex gap-2">
-                      {match.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+            groupedUnstarred.map((group, groupIdx) => (
+              <div key={`${group.league}-${groupIdx}`} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  {group.league_logo ? (
+                    <img
+                      src={group.league_logo}
+                      alt={group.league}
+                      className="w-4 h-4 object-contain opacity-80"
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : null}
+                  <div className="text-[10px] text-gray-400 font-mono tracking-widest uppercase">{group.league}</div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2">
-                  {match.home_logo ? (
-                    <img
-                      src={match.home_logo}
-                      alt={match.home}
-                      className="w-5 h-5 object-contain opacity-90"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : null}
-                  {match.away_logo ? (
-                    <img
-                      src={match.away_logo}
-                      alt={match.away}
-                      className="w-5 h-5 object-contain opacity-90"
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : null}
-                  <div className="text-gray-600 group-hover:text-neon-gold transition-colors">
-                    <Star size={18} />
-                  </div>
+                <div className="space-y-2">
+                  {group.matches.map((match) => (
+                    <motion.div
+                      layoutId={`match-${match.id}`}
+                      key={match.id}
+                      className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
+                      onClick={() => toggleStar(match.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 text-center border-r border-white/5 pr-3">
+                          <span className="text-xs font-mono text-gray-400 block">{match.time}</span>
+                          {match.status === 'LIVE' && (
+                            <span className="text-[8px] text-neon-red font-bold">LIVE</span>
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium text-white mb-1">
+                            {match.home} <span className="text-gray-600">vs</span> {match.away}
+                          </div>
+                          <div className="flex gap-2">
+                            {match.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 p-2">
+                        {match.league_logo ? (
+                          <img
+                            src={match.league_logo}
+                            alt={match.league}
+                            className="w-5 h-5 object-contain opacity-60 grayscale"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : null}
+                        {match.home_logo ? (
+                          <img
+                            src={match.home_logo}
+                            alt={match.home}
+                            className="w-5 h-5 object-contain opacity-90"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : null}
+                        {match.away_logo ? (
+                          <img
+                            src={match.away_logo}
+                            alt={match.away}
+                            className="w-5 h-5 object-contain opacity-90"
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : null}
+                        <div className="text-gray-600 group-hover:text-neon-gold transition-colors">
+                          <Star size={18} />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
         </div>
