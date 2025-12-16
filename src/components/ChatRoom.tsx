@@ -26,6 +26,8 @@ type ChatMessageSelectRow = {
 const MESSAGE_SELECT =
   'id, telegram_id, room_id, username, avatar_url, content, created_at, reply_to_id, reply_message:reply_to_id(id, telegram_id, room_id, username, avatar_url, content, created_at), message_reactions(user_id, reaction_type, message_id)';
 
+const HISTORY_LIMIT = 200;
+
 function normalizeMessageBase(row: ChatMessageSelectRow): Message {
   return {
     id: String(row.id),
@@ -163,6 +165,12 @@ export default function ChatRoom(props: {
 
     let cancelled = false;
 
+    const isInThisRoom = (room: unknown) => {
+      const r = typeof room === 'string' ? room : '';
+      if (roomId === 'global') return r === 'global' || r === '' || room == null;
+      return r === roomId;
+    };
+
     const fetchMessageById = async (messageId: string): Promise<Message | null> => {
       const { data, error } = await sb.from('chat_messages').select(MESSAGE_SELECT).eq('id', messageId).single();
       if (error) {
@@ -173,12 +181,13 @@ export default function ChatRoom(props: {
     };
 
     const loadHistory = async () => {
-      const { data, error } = await sb
-        .from('chat_messages')
-        .select(MESSAGE_SELECT)
-        .eq('room_id', roomId)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      const base = sb.from('chat_messages').select(MESSAGE_SELECT).order('created_at', { ascending: false });
+      const query =
+        roomId === 'global'
+          ? base.or('room_id.eq.global,room_id.is.null,room_id.eq.')
+          : base.eq('room_id', roomId);
+
+      const { data, error } = await query.limit(HISTORY_LIMIT);
 
       if (cancelled) return;
       if (error) {
@@ -195,28 +204,30 @@ export default function ChatRoom(props: {
 
     void loadHistory();
 
-    const channel = sb
-      .channel(`chat-messages-${roomId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
-        (payload: any) => {
-          const rawId = payload?.new?.id;
-          if (!rawId) return;
-          const id = String(rawId);
+    const channel = sb.channel(`chat-messages-${roomId}`).on(
+      'postgres_changes',
+      roomId === 'global'
+        ? { event: 'INSERT', schema: 'public', table: 'chat_messages' }
+        : { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` },
+      (payload: any) => {
+        const rawId = payload?.new?.id;
+        if (!rawId) return;
+        if (!isInThisRoom(payload?.new?.room_id)) return;
+        const id = String(rawId);
 
-          void fetchMessageById(id).then((full) => {
-            if (cancelled) return;
-            if (!full) return;
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === full.id)) return prev;
-              return [...prev, full];
-            });
-            queueMicrotask(scrollToBottom);
+        void fetchMessageById(id).then((full) => {
+          if (cancelled) return;
+          if (!full) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === full.id)) return prev;
+            return [...prev, full];
           });
-        }
-      )
-      .subscribe();
+          queueMicrotask(scrollToBottom);
+        });
+      }
+    );
+
+    void channel.subscribe();
 
     return () => {
       cancelled = true;
