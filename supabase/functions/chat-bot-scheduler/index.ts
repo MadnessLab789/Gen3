@@ -1,8 +1,9 @@
 // Supabase Edge Function: chat-bot-scheduler
 // Randomly posts a "persona" message into public.chat_messages.
 //
-// - Supports two rooms via request body: { room_id: 'global' | 'war-room' }
-// - Uses negative telegram_id for personas so they look like "humans" in UI.
+// Stadium Mode:
+// - Inserts into public.chat_messages using (sender_id, sender_type, nickname, avatar_url, content).
+// - Uses negative sender_id for personas so they look like "humans" in UI.
 //
 // Deploy:
 //   supabase functions deploy chat-bot-scheduler
@@ -18,7 +19,9 @@ const corsHeaders = {
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+// NOTE: Supabase CLI blocks secrets starting with "SUPABASE_".
+// Use SERVICE_ROLE_KEY as the project secret name.
+const SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
 
 // 1) Personas + messages (Global)
@@ -80,26 +83,15 @@ function pickRandom<T>(arr: T[]): T {
 
 async function insertMessage(params: {
   supabase: ReturnType<typeof createClient>;
-  telegram_id: number;
-  username: string;
+  sender_id: number;
+  sender_type: 'bot' | 'user';
+  nickname: string;
+  avatar_url?: string | null;
   content: string;
-  room_id: string;
 }) {
   const { supabase, ...payload } = params;
-
-  // Try insert including type='text' (if column exists), otherwise fallback.
-  const tryWithType = await supabase
-    .from('chat_messages')
-    .insert({ ...payload, type: 'text' } as any);
-
-  if (!tryWithType.error) return { error: null as any };
-
-  const msg = String((tryWithType.error as any)?.message ?? '').toLowerCase();
-  const typeColumnMissing = msg.includes('column') && msg.includes('type');
-  if (!typeColumnMissing) return { error: tryWithType.error };
-
-  const tryWithoutType = await supabase.from('chat_messages').insert(payload as any);
-  return { error: tryWithoutType.error };
+  const res = await supabase.from('chat_messages').insert(payload as any);
+  return { error: res.error };
 }
 
 Deno.serve(async (req) => {
@@ -107,7 +99,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return json({ success: false, error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }, 500);
+    return json({ success: false, error: 'Missing SUPABASE_URL or SERVICE_ROLE_KEY' }, 500);
   }
 
   // Optional: protect from public abuse
@@ -117,7 +109,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 2) Parse request payload (choose room + probability)
+    // 2) Parse request payload (choose script set + probability)
     const body = (await req.json().catch(() => ({}))) as any;
     const room_id = body?.room_id === 'war-room' ? 'war-room' : 'global';
     const send_probability_raw = Number(body?.send_probability ?? 1.0);
@@ -141,10 +133,11 @@ Deno.serve(async (req) => {
     // 5) Insert into DB
     const { error } = await insertMessage({
       supabase,
-      telegram_id: selectedPersona.id,
-      username: selectedPersona.name,
+      sender_id: selectedPersona.id,
+      sender_type: 'bot',
+      nickname: selectedPersona.name,
+      avatar_url: null,
       content: selectedMessage,
-      room_id,
     });
 
     if (error) throw error;
