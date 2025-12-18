@@ -5,7 +5,7 @@ import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
 import ChatRoom from './ChatRoom';
-import { supabase } from '../supabaseClient';
+import { supabase, supabasePrematch } from '../supabaseClient';
 
 interface Analysis {
   signal: string;
@@ -335,26 +335,27 @@ export default function WarRoom({
     return () => clearTimeout(timer);
   }, []);
 
-  // Load signals from Supabase (moneyline 1x2 + OverUnder)
+  // Load signals from Supabase (moneyline 1x2 + OverUnder + Handicap)
   useEffect(() => {
     let cancelled = false;
     const fetchSignals = async () => {
-      if (!supabase) return;
+      const sb = supabasePrematch ?? supabase;
+      if (!sb) return;
       setSignalsLoading(true);
 
-      const { data: mlData, error: mlError } = await supabase
+      const { data: mlData, error: mlError } = await sb
         .from('moneyline 1x2')
         .select('*')
         .order('id', { ascending: false })
         .limit(50);
 
-      const { data: ouData, error: ouError } = await supabase
+      const { data: ouData, error: ouError } = await sb
         .from('OverUnder')
         .select('*')
         .order('id', { ascending: false })
         .limit(50);
 
-      const { data: hdpData, error: hdpError } = await supabase
+      const { data: hdpData, error: hdpError } = await sb
         .from('Handicap')
         .select('*')
         .order('id', { ascending: false })
