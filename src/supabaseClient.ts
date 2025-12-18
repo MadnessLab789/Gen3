@@ -20,6 +20,16 @@ const SUPABASE_ANON_KEY =
   (import.meta.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string | undefined) ??
   undefined;
 
+// Optional: dedicated client for prematches if它在另一个 Supabase 账号
+const PREMATCH_URL =
+  (import.meta.env.VITE_PREMATCH_SUPABASE_URL as string | undefined) ??
+  (import.meta.env.NEXT_PUBLIC_PREMATCH_SUPABASE_URL as string | undefined) ??
+  undefined;
+const PREMATCH_KEY =
+  (import.meta.env.VITE_PREMATCH_SUPABASE_KEY as string | undefined) ??
+  (import.meta.env.NEXT_PUBLIC_PREMATCH_SUPABASE_KEY as string | undefined) ??
+  undefined;
+
 export const supabase: SupabaseClient | null =
   typeof SUPABASE_URL === 'string' &&
   SUPABASE_URL.length > 0 &&
@@ -28,4 +38,11 @@ export const supabase: SupabaseClient | null =
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
     : null;
 
+export const supabasePrematch: SupabaseClient | null =
+  typeof PREMATCH_URL === 'string' &&
+  PREMATCH_URL.length > 0 &&
+  typeof PREMATCH_KEY === 'string' &&
+  PREMATCH_KEY.length > 0
+    ? createClient(PREMATCH_URL, PREMATCH_KEY)
+    : null;
 

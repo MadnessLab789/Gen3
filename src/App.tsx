@@ -6,7 +6,7 @@ import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
 import MatchList from './components/MatchList';
-import { supabase } from './supabaseClient';
+import { supabase, supabasePrematch } from './supabaseClient';
 
 declare global {
   interface Window {
@@ -158,6 +158,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [vipProcessingMatchId, setVipProcessingMatchId] = useState<number | null>(null);
   const sb = supabase;
+  const sbMatches = supabasePrematch ?? supabase; // use dedicated prematch client if provided
 
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
@@ -428,7 +429,7 @@ function App() {
   useEffect(() => {
     let cancelled = false;
     const loadMatches = async () => {
-      if (!sb) {
+      if (!sbMatches) {
         setMatchesLoading(false);
         setMatchesError('Supabase client not ready');
         return;
@@ -441,7 +442,7 @@ function App() {
       let lastError: any = null;
 
       for (const tableName of tableCandidates) {
-        const { data, error } = await sb
+        const { data, error } = await sbMatches
           .from(tableName)
           .select(
             'id, fixture_id, league_name, league_logo, home_name, home_logo, away_name, away_logo, start_date_msia, status_short, goals_home, goals_away, type',
