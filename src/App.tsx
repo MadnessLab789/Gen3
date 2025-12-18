@@ -435,25 +435,43 @@ function App() {
       }
       setMatchesLoading(true);
       setMatchesError(null);
-      const { data, error } = await sb
-        .from('pre-matches')
-        .select(
-          'id, fixture_id, league_name, league_logo, home_name, home_logo, away_name, away_logo, start_date_msia, status_short, goals_home, goals_away, type',
-        )
-        .order('start_date_msia', { ascending: true })
-        .limit(200);
+      const tableCandidates = ['pre-matches', 'pre_matches', 'prematches'];
+      let rowsData: any[] | null = null;
+      let lastError: any = null;
+
+      for (const tableName of tableCandidates) {
+        const { data, error } = await sb
+          .from(tableName)
+          .select(
+            'id, fixture_id, league_name, league_logo, home_name, home_logo, away_name, away_logo, start_date_msia, status_short, goals_home, goals_away, type',
+          )
+          .order('start_date_msia', { ascending: true })
+          .limit(200);
+
+        if (!error && Array.isArray(data)) {
+          rowsData = data;
+          break;
+        } else {
+          lastError = error;
+        }
+      }
 
       if (cancelled) return;
 
-      if (error) {
-        console.warn('[pre-matches] load failed:', error);
-        setMatchesError(`Failed to load matches from pre-matches: ${error.message || 'unknown error'}`);
+      if (!rowsData) {
+        console.warn('[pre-matches] load failed, tried:', tableCandidates, 'last error:', lastError);
+        const lastMsg = lastError?.message || 'unknown error';
+        setMatchesError(
+          `Failed to load matches: checked tables ${tableCandidates.join(
+            ', ',
+          )}; last error: ${lastMsg}`,
+        );
         setMatches([]);
         setMatchesLoading(false);
         return;
       }
 
-      const rowsRaw = (data ?? []) as PreMatchRow[];
+      const rowsRaw = (rowsData ?? []) as PreMatchRow[];
       const rows = rowsRaw.map((row) => {
         const statusCode = String(row.status_short || '').toUpperCase();
         const isFinished = statusCode === 'FT' || statusCode === 'AET' || statusCode === 'PEN';
