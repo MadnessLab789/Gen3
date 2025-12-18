@@ -5,6 +5,7 @@ import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
 import ChatRoom from './ChatRoom';
+import { supabase } from '../supabaseClient';
 
 interface Analysis {
   signal: string;
@@ -61,66 +62,80 @@ interface SignalItem {
   reasoning?: string;
   stats?: string[];
   guruComment?: string;
+  league_logo?: string | null;
 }
 
-const MOCK_SIGNALS: SignalItem[] = [
-  {
-    id: 1,
-    type: 'sniper',
-    category: '1x2',
-    league: 'UEFA CL',
-    time: "LIVE 23'",
-    status: 'LIVE',
-    timestamp: "23'",
-    title: 'Qarabağ vs Ajax',
-    market: 'AWAY WIN',
-    odds: 3.29,
-    unit: '+1',
-    statusText: 'Holding 💼',
-  },
-  {
-    id: 2,
-    type: 'analysis',
-    category: 'hdp',
-    league: 'UEFA CL',
-    time: "LIVE 6'",
-    status: 'LIVE',
-    timestamp: "6'",
-    title: 'HDP 亚盘狙击 (v5.1 Optimized)',
-    strategy: '🟢 追主队',
-    suggestion: 'Home -0.25',
-    reasoning:
-      '盘口在 Home -0.25 维持不变，但主队赔率从 2.02 降至 1.99，这符合 “同盘降水” 的强力攻击信号。庄家在不升盘的情况下降低赔付，说明资金流向主队，且当前水位 1.99 处于健康的 1.75-2.05 区间，是进场的理想时机。',
-    stats: [
-      '趋势: 庄家悄悄降低主队水位 (同盘降水)',
-      '变盘: Home -0.25 (盘口不变)',
-      '抽水: ✅ -',
-    ],
-    guruComment:
-      'Eh brader，你看这个水位，从 2.02 慢慢跌到 1.99，盘口又没动，庄家不是傻的，这是在收水啊！主队 Leverkusen -0.25，水位又靓仔 (1.99)，不冲现在冲几时？这个可以买！1 Unit 先下，不要等了。',
-  },
-  {
-    id: 3,
-    type: 'analysis',
-    category: 'ou',
-    league: 'UEFA CL',
-    time: "LIVE 46'",
-    status: 'LIVE',
-    timestamp: "46'",
-    title: 'O/U 大小球火力追踪',
-    strategy: '🟢 追大球',
-    suggestion: 'Over 2.75',
-    reasoning:
-      '中场结束后盘口保持在 2.75，水位略微下调，双方节奏偏快且前场尝试增多，后半场预期会拉高射门数。水位下调但盘口不抬，显示庄家对进球持开放态度。',
-    stats: [
-      '趋势: 中场后水位微降但盘口不动',
-      '变盘: 2.75 固定',
-      '抽水: ✅ 健康区间',
-    ],
-    guruComment:
-      '下半场会更凶，Over 2.75 现在跟上，别等盘口抬高。1 Unit 先走，不贪多。',
-  },
-];
+type MoneylineRow = {
+  id: number;
+  fixture_id: number | null;
+  bookmaker: string | null;
+  league_name: string | null;
+  league_logo?: string | null;
+  home_name: string;
+  away_name: string;
+  moneyline_1x2_home: number | null;
+  moneyline_1x2_draw: number | null;
+  moneyline_1x2_away: number | null;
+  signal?: string | null;
+  ai_model?: string | null;
+  clock?: number | null;
+  stacking_quantity?: string | null;
+  stacking_plan_description?: string | null;
+  result_status?: string | null;
+  score_home?: number | null;
+  score_away?: number | null;
+  selection?: string | null;
+  market_game?: string | null;
+  commentary_malaysia?: string | null;
+};
+
+type OverUnderRow = {
+  id: number;
+  fixture_id: number | null;
+  bookmaker: string | null;
+  league_name: string | null;
+  league_logo?: string | null;
+  home_name: string;
+  away_name: string;
+  line: number | null;
+  over: number | null;
+  under: number | null;
+  signal?: string | null;
+  ai_model?: string | null;
+  clock?: number | null;
+  stacking_quantity?: string | null;
+  stacking_plan_description?: string | null;
+  result_status?: string | null;
+  score_home?: number | null;
+  score_away?: number | null;
+  selection?: string | null;
+  market_game?: string | null;
+  commentary_malaysia?: string | null;
+};
+
+type HandicapRow = {
+  id: number;
+  fixture_id: number | null;
+  bookmaker: string | null;
+  league_name: string | null;
+  league_logo?: string | null;
+  home_name: string;
+  away_name: string;
+  line: number | null;
+  home_odds: number | null;
+  away_odds: number | null;
+  signal?: string | null;
+  ai_model?: string | null;
+  clock?: number | null;
+  stacking_quantity?: string | null;
+  stacking_plan_description?: string | null;
+  result_status?: string | null;
+  score_home?: number | null;
+  score_away?: number | null;
+  selection?: string | null;
+  market_game?: string | null;
+  commentary_malaysia?: string | null;
+};
 
 // BettingSheet Component
 interface BettingSheetProps {
@@ -253,7 +268,7 @@ export default function WarRoom({
   onClose,
   onUpdateBalance,
   onVipPurchase,
-  isVip = false,
+  isVip = true,
   chatUserId = null,
   chatUsername = null,
   userBalance = 0,
@@ -271,6 +286,8 @@ export default function WarRoom({
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [selectedTrader, setSelectedTrader] = useState<any | null>(null);
+  const [signals, setSignals] = useState<SignalItem[]>([]);
+  const [, setSignalsLoading] = useState(false);
 
   const tabs = [
     { id: 'signals' as TabType, label: 'Signals', icon: TrendingUp },
@@ -318,11 +335,205 @@ export default function WarRoom({
     return () => clearTimeout(timer);
   }, []);
 
+  // Load signals from Supabase (moneyline 1x2 + OverUnder)
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSignals = async () => {
+      if (!supabase) return;
+      setSignalsLoading(true);
+
+      const { data: mlData, error: mlError } = await supabase
+        .from('moneyline 1x2')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(50);
+
+      const { data: ouData, error: ouError } = await supabase
+        .from('OverUnder')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(50);
+
+      const { data: hdpData, error: hdpError } = await supabase
+        .from('Handicap')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(50);
+
+      if (cancelled) return;
+
+      let signalsNext: SignalItem[] = [];
+
+      const matchesFixture = (fixtureId: number | string | null | undefined) => {
+        if (fixtureId === null || fixtureId === undefined) return false;
+        const mId = Number(match.id);
+        const fId = Number(fixtureId);
+        if (Number.isFinite(mId) && Number.isFinite(fId)) return mId === fId;
+        return String(fixtureId) === String(match.id);
+      };
+
+      if (!mlError && Array.isArray(mlData)) {
+        signalsNext.push(
+          ...(mlData as any[])
+            .filter((row: any) => matchesFixture((row as any).fixture_id))
+            .map((row, idx) => {
+              const r = row as any as MoneylineRow;
+              const category: SignalItem['category'] = '1x2'; // force moneyline into 1x2 tab
+              const selectionRaw = (r.selection || '').toString().toLowerCase();
+              let market = 'HOLD';
+              let odds: number | undefined;
+              if (selectionRaw.includes('home')) {
+                market = 'HOME WIN';
+                odds = typeof r.moneyline_1x2_home === 'number' ? r.moneyline_1x2_home : undefined;
+              } else if (selectionRaw.includes('away')) {
+                market = 'AWAY WIN';
+                odds = typeof r.moneyline_1x2_away === 'number' ? r.moneyline_1x2_away : undefined;
+              } else if (selectionRaw.includes('draw')) {
+                market = 'DRAW';
+                odds = typeof r.moneyline_1x2_draw === 'number' ? r.moneyline_1x2_draw : undefined;
+              }
+              const timeLabel = typeof r.clock === 'number' ? `${r.clock}'` : '—';
+              const title = `${r.home_name} vs ${r.away_name}`;
+              return {
+                id: r.id ?? idx,
+                type: 'sniper',
+                category,
+                league: r.league_name || 'League',
+                league_logo: (r as any).league_logo ?? null,
+                time: timeLabel,
+                status: 'LIVE',
+                timestamp: timeLabel,
+                title,
+                market,
+                odds,
+                unit: r.stacking_quantity || '+1',
+                statusText: r.bookmaker || 'Holding',
+                suggestion: market,
+                strategy: r.ai_model || undefined,
+                guruComment: r.commentary_malaysia || undefined,
+              } satisfies SignalItem;
+            })
+        );
+      }
+
+      if (!ouError && Array.isArray(ouData)) {
+        signalsNext.push(
+          ...(ouData as any[])
+            .filter((row: any) => matchesFixture((row as any).fixture_id))
+            .map((row, idx) => {
+              const r = row as any as OverUnderRow;
+              const category: SignalItem['category'] = 'ou'; // force OverUnder into O/U tab
+              const selectionRaw = (r.selection || '').toString().toLowerCase();
+              let market = 'HOLD';
+              let odds: number | undefined;
+              if (selectionRaw.includes('over')) {
+                market = 'OVER';
+                odds = typeof r.over === 'number' ? r.over : undefined;
+              } else if (selectionRaw.includes('under')) {
+                market = 'UNDER';
+                odds = typeof r.under === 'number' ? r.under : undefined;
+              }
+              const timeLabel = typeof r.clock === 'number' ? `${r.clock}'` : '—';
+              const title = `${r.home_name} vs ${r.away_name}`;
+              const lineLabel = typeof r.line === 'number' ? `(${r.line})` : '';
+              return {
+                id: r.id ?? idx + 1000,
+                type: 'sniper',
+                category,
+                league: r.league_name || 'League',
+                league_logo: (r as any).league_logo ?? null,
+                time: timeLabel,
+                status: 'LIVE',
+                timestamp: timeLabel,
+                title,
+                market: market === 'HOLD' && lineLabel ? `HOLD ${lineLabel}` : [market, lineLabel].filter(Boolean).join(' '),
+                odds,
+                unit: r.stacking_quantity || '+1',
+                statusText: r.bookmaker || 'Holding',
+                suggestion: market,
+                strategy: r.ai_model || undefined,
+                guruComment: r.commentary_malaysia || undefined,
+              } satisfies SignalItem;
+            })
+        );
+      }
+
+      if (!hdpError && Array.isArray(hdpData)) {
+        signalsNext.push(
+          ...(hdpData as any[])
+            .filter((row: any) => matchesFixture((row as any).fixture_id))
+            .map((row, idx) => {
+              const r = row as any as HandicapRow;
+              const category: SignalItem['category'] = 'hdp';
+              const selectionRaw = (r.selection || '').toString().toLowerCase();
+              const lineLabel = typeof r.line === 'number' ? `${r.line > 0 ? '+' : ''}${r.line}` : '';
+              let market = 'HOLD';
+              let odds: number | undefined;
+
+              if (selectionRaw.includes('home')) {
+                market = lineLabel ? `HOME ${lineLabel}` : 'HOME';
+                odds = typeof r.home_odds === 'number' ? r.home_odds : undefined;
+              } else if (selectionRaw.includes('away')) {
+                market = lineLabel ? `AWAY ${lineLabel}` : 'AWAY';
+                odds = typeof r.away_odds === 'number' ? r.away_odds : undefined;
+              } else if (lineLabel) {
+                market = `HOLD ${lineLabel}`;
+              }
+
+              const timeLabel = typeof r.clock === 'number' ? `${r.clock}'` : '—';
+              const title = `${r.home_name} vs ${r.away_name}`;
+
+              return {
+                id: r.id ?? idx + 2000,
+                type: 'sniper',
+                category,
+                league: r.league_name || 'League',
+                league_logo: (r as any).league_logo ?? null,
+                time: timeLabel,
+                status: 'LIVE',
+                timestamp: timeLabel,
+                title,
+                market,
+                odds,
+                unit: r.stacking_quantity || '+1',
+                statusText: r.bookmaker || 'Holding',
+                suggestion: market,
+                strategy: r.ai_model || undefined,
+                guruComment: r.commentary_malaysia || undefined,
+              } satisfies SignalItem;
+            })
+        );
+      }
+
+      // 按 id 倒序展示全部匹配的记录（不去重，方便查看多条）
+      signalsNext.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+      // de-dupe by category + id to avoid cross-tab duplicates
+      const deduped = Array.from(
+        signalsNext.reduce((map, item) => {
+          const key = `${item.category || 'unknown'}-${item.id}`;
+          if (!map.has(key)) map.set(key, item);
+          return map;
+        }, new Map<string, SignalItem>())
+        .values()
+      );
+      deduped.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+      signalsNext = deduped;
+      setSignals(signalsNext);
+      setSignalsLoading(false);
+    };
+
+    void fetchSignals();
+    return () => {
+      cancelled = true;
+    };
+  }, [match.id]);
+
   const handlePlaceBet = () => {
     setShowBettingSlip(true);
     setBetAmount(0);
   };
 
+  // Load moneyline 1x2 signals from Supabase
   const handleConfirmBet = () => {
     const currentBetAmount = betAmount; // Save bet amount before resetting
     setShowBettingSlip(false);
@@ -420,7 +631,17 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       <div className="p-4 space-y-3">
         <div className="flex items-center justify-between text-xs text-gray-300">
           <div className="flex items-center gap-2">
-            <span className="text-lg">🏆</span>
+            {signal.league_logo ? (
+              <img
+                src={signal.league_logo}
+                alt={signal.league}
+                className="w-4 h-4 object-contain"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <span className="text-lg">🏆</span>
+            )}
             <span className="font-semibold">{signal.league}</span>
             <span className="px-2 py-1 rounded-full text-[10px] bg-neon-red/10 text-neon-red font-mono">⏱️ {signal.timestamp}</span>
           </div>
@@ -638,13 +859,25 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
   );
 
   // Filter and order signals: Sniper first, then Analysis
-  const filteredSignals = MOCK_SIGNALS.filter(
-    (s) => filterCategory === 'all' || s.category === filterCategory
-  );
+  const filteredSignals = signals.filter((s) => {
+    const cat = (s.category ?? '').toString().trim().toLowerCase();
+    const f = filterCategory.toLowerCase();
+    const isValidCat = cat === '1x2' || cat === 'ou' || cat === 'hdp';
+    if (f === 'all') return isValidCat;
+    return isValidCat && cat === f;
+  });
   const orderedSignals = [
     ...filteredSignals.filter((s) => s.type === 'sniper'),
     ...filteredSignals.filter((s) => s.type === 'analysis'),
   ];
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
 
   return (
     <motion.div
@@ -657,7 +890,17 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       <div className="min-h-screen max-w-md mx-auto px-4 pt-6 pb-24">
         {/* Toast */}
         <AnimatePresence>
-          {toastMessage && (
+          {/* Sticky close button (mobile friendly) */}
+        <div className="fixed top-4 right-4 z-[120]">
+          <button
+            onClick={onClose}
+            className="p-2 rounded-full bg-black/50 border border-white/20 text-white hover:bg-black/70 transition-colors"
+            aria-label="Close War Room"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {toastMessage && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -690,6 +933,13 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               </span>
             )}
           </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-surface-highlight rounded-lg transition-colors"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
         </header>
 
         {/* Tabs */}
@@ -767,8 +1017,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 })}
               </div>
 
-              {/* Signals List (Sniper first, then Analysis) */}
-              <div className="space-y-4">
+              {/* Scrollable signals */}
+              <div className="space-y-4 max-h-[55vh] overflow-y-auto pr-2">
                 {orderedSignals.map((signal) =>
                   signal.type === 'sniper' ? (
                     <SniperTicket key={signal.id} signal={signal} />
@@ -778,7 +1028,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 )}
               </div>
 
-              {/* Smart Money Chart (bottom) */}
+              {/* Smart Money Chart (outside scroll) */}
               <div className="bg-black/40 rounded-lg p-4 border border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2 text-neon-green">
