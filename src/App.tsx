@@ -435,7 +435,7 @@ function App() {
       }
       setMatchesLoading(true);
       setMatchesError(null);
-      const tableCandidates = ['pre-matches', 'pre_matches', 'prematches'];
+      const tableCandidates = ['pre-matches', '"pre-matches"', 'pre_matches', 'prematches'];
       let rowsData: any[] | null = null;
       let lastError: any = null;
 
@@ -461,8 +461,9 @@ function App() {
       if (!rowsData) {
         console.warn('[pre-matches] load failed, tried:', tableCandidates, 'last error:', lastError);
         const lastMsg = lastError?.message || 'unknown error';
+        const url = typeof import.meta !== 'undefined' ? (import.meta.env?.NEXT_PUBLIC_SUPABASE_URL || import.meta.env?.VITE_SUPABASE_URL || '') : '';
         setMatchesError(
-          `Failed to load matches: checked tables ${tableCandidates.join(
+          `Failed to load matches (supabase ${url}): checked tables ${tableCandidates.join(
             ', ',
           )}; last error: ${lastMsg}`,
         );
