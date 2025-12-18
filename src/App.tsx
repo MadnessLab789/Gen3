@@ -435,7 +435,8 @@ function App() {
       }
       setMatchesLoading(true);
       setMatchesError(null);
-      const tableCandidates = ['pre-matches', '"pre-matches"', 'pre_matches', 'prematches'];
+      // 依序尝试常见命名；你现在使用的表名是 "prematches"
+      const tableCandidates = ['prematches', 'pre-matches', '"pre-matches"', 'pre_matches'];
       let rowsData: any[] | null = null;
       let lastError: any = null;
 
