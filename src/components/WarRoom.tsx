@@ -861,11 +861,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
   // Filter and order signals: Sniper first, then Analysis
   const filteredSignals = signals.filter((s) => {
-    const cat = (s.category ?? '').toString().trim().toLowerCase();
-    const f = filterCategory.toLowerCase();
-    const isValidCat = cat === '1x2' || cat === 'ou' || cat === 'hdp';
-    if (f === 'all') return isValidCat;
-    return isValidCat && cat === f;
+    const cat = (s.category ?? '') as SignalItem['category'];
+    if (filterCategory === 'all') {
+      return cat === '1x2' || cat === 'ou' || cat === 'hdp';
+    }
+    return cat === filterCategory;
   });
   const orderedSignals = [
     ...filteredSignals.filter((s) => s.type === 'sniper'),
