@@ -1,9 +1,8 @@
 // Supabase Edge Function: chat-bot-scheduler
 // Randomly posts a "persona" message into public.chat_messages.
 //
-// Stadium Mode:
-// - Inserts into public.chat_messages using (sender_id, sender_type, nickname, avatar_url, content).
-// - Uses negative sender_id for personas so they look like "humans" in UI.
+// - Supports two rooms via request body: { room_id: 'global' | 'war-room' }
+// - Uses negative telegram_id for personas so they look like "humans" in UI.
 //
 // Deploy:
 //   supabase functions deploy chat-bot-scheduler
@@ -19,9 +18,7 @@ const corsHeaders = {
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
-// NOTE: Supabase CLI blocks secrets starting with "SUPABASE_".
-// Use SERVICE_ROLE_KEY as the project secret name.
-const SERVICE_ROLE_KEY = Deno.env.get('SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
 
 // 1) Personas + messages (Global)
@@ -83,15 +80,26 @@ function pickRandom<T>(arr: T[]): T {
 
 async function insertMessage(params: {
   supabase: ReturnType<typeof createClient>;
-  sender_id: number;
-  sender_type: 'bot' | 'user';
-  nickname: string;
-  avatar_url?: string | null;
+  telegram_id: number;
+  username: string;
   content: string;
+  room_id: string;
 }) {
   const { supabase, ...payload } = params;
-  const res = await supabase.from('chat_messages').insert(payload as any);
-  return { error: res.error };
+
+  // Try insert including type='text' (if column exists), otherwise fallback.
+  const tryWithType = await supabase
+    .from('chat_messages')
+    .insert({ ...payload, type: 'text' } as any);
+
+  if (!tryWithType.error) return { error: null as any };
+
+  const msg = String((tryWithType.error as any)?.message ?? '').toLowerCase();
+  const typeColumnMissing = msg.includes('column') && msg.includes('type');
+  if (!typeColumnMissing) return { error: tryWithType.error };
+
+  const tryWithoutType = await supabase.from('chat_messages').insert(payload as any);
+  return { error: tryWithoutType.error };
 }
 
 Deno.serve(async (req) => {
@@ -99,7 +107,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return json({ success: false, error: 'Missing SUPABASE_URL or SERVICE_ROLE_KEY' }, 500);
+    return json({ success: false, error: 'Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' }, 500);
   }
 
   // Optional: protect from public abuse
@@ -109,42 +117,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 2) Parse request payload (Payload Mode)
-    // If caller provides (content, nickname, sender_id), we prioritize that payload.
-    // If body is empty/invalid (cron), we fall back to the random bot behavior.
-    const body = (await req.json().catch(() => null)) as any;
-
-    const hasPayload =
-      body &&
-      typeof body.content === 'string' &&
-      body.content.trim().length > 0 &&
-      typeof body.nickname === 'string' &&
-      body.nickname.trim().length > 0 &&
-      typeof body.sender_id === 'number' &&
-      Number.isFinite(body.sender_id);
-
-    // 3) Init Supabase client (Service Role to bypass RLS writes)
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-    if (hasPayload) {
-      const sender_type =
-        body?.sender_type === 'user' || body?.sender_type === 'bot' ? (body.sender_type as 'user' | 'bot') : 'bot';
-      const avatar_url = typeof body?.avatar_url === 'string' && body.avatar_url.trim().length > 0 ? body.avatar_url : null;
-
-      const { error } = await insertMessage({
-        supabase,
-        sender_id: body.sender_id,
-        sender_type,
-        nickname: body.nickname,
-        avatar_url,
-        content: body.content,
-      });
-
-      if (error) throw error;
-      return json({ success: true, mode: 'payload', sender_id: body.sender_id, sender_type, nickname: body.nickname });
-    }
-
-    // 3b) Random mode (cron/default): choose script set + probability
+    // 2) Parse request payload (choose room + probability)
+    const body = (await req.json().catch(() => ({}))) as any;
     const room_id = body?.room_id === 'war-room' ? 'war-room' : 'global';
     const send_probability_raw = Number(body?.send_probability ?? 1.0);
     const send_probability =
@@ -157,23 +131,25 @@ Deno.serve(async (req) => {
       return json({ success: true, skipped: true, room: room_id });
     }
 
-    // 4) Choose script by room
+    // 3) Choose script by room
     const selectedPersona = room_id === 'war-room' ? pickRandom(WAR_ROOM_BOTS) : pickRandom(GLOBAL_BOTS);
     const selectedMessage = room_id === 'war-room' ? pickRandom(WAR_ROOM_MESSAGES) : pickRandom(GLOBAL_MESSAGES);
+
+    // 4) Init Supabase client (Service Role to bypass RLS writes)
+    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
     // 5) Insert into DB
     const { error } = await insertMessage({
       supabase,
-      sender_id: selectedPersona.id,
-      sender_type: 'bot',
-      nickname: selectedPersona.name,
-      avatar_url: null,
+      telegram_id: selectedPersona.id,
+      username: selectedPersona.name,
       content: selectedMessage,
+      room_id,
     });
 
     if (error) throw error;
 
-    return json({ success: true, mode: 'random', room: room_id, bot: selectedPersona.name });
+    return json({ success: true, room: room_id, bot: selectedPersona.name });
   } catch (error: any) {
     return json({ success: false, error: error?.message ?? String(error) }, 500);
   }

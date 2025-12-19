@@ -1,249 +1,438 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { ArrowLeft, Heart, Send, Users, Flame } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
+import type { ChatMessage } from '../types/index';
 
-// Stadium Mode message shape (denormalized for high-frequency reads)
-interface Message {
-  id: number; // BIGINT identity (assumed <= Number.MAX_SAFE_INTEGER)
-  content: string;
-  sender_id: number;
-  sender_type: 'user' | 'bot';
-  nickname: string;
-  avatar_url?: string;
-  created_at: string;
+interface ChatRoomProps {
+  matchId?: number; // 可选。如果有值，过滤 match_id；如果没值，加载全局消息
+  currentUser: { id: number; username: string };
+  onBack: () => void;
+  onNavigateToWarRoom?: (matchId: number) => void; // 可选：导航到 War Room 的回调
 }
 
-type StadiumChatRow = {
-  id: number | string;
-  content: string;
-  sender_id: number | null;
-  sender_type: 'user' | 'bot' | null;
-  nickname: string | null;
-  avatar_url: string | null;
-  created_at: string;
-};
-
-const MESSAGE_SELECT = 'id, content, sender_id, sender_type, nickname, avatar_url, created_at';
 const HISTORY_LIMIT = 50;
 
-function toIdNumber(id: unknown): number | null {
-  if (typeof id === 'number' && Number.isFinite(id)) return id;
-  if (typeof id === 'string') {
-    const n = Number.parseInt(id, 10);
-    return Number.isFinite(n) ? n : null;
+// V5.2: 检查是否是真实用户消息
+const isUserMessage = (message: ChatMessage, currentUserId: number): boolean => {
+  // 真实用户消息：有 user_id 且等于 currentUser.id，且 persona_role 为 null
+  return Boolean(message.user_id) && Number(message.user_id) === currentUserId && !message.persona_role;
+};
+
+// V5.2: 获取角色对应的 Verified Badge Emoji
+const getRoleBadge = (role: string | null | undefined): string => {
+  if (!role) return '';
+  
+  switch (role) {
+    case 'Analyst':
+      return '🛡️'; // 分析师：盾牌徽章
+    case 'Ultra':
+      return '🔥'; // 气氛组：火焰徽章
+    case 'TheKaki':
+      return '💬'; // TheKaki：对话徽章
+    case 'TheMat':
+      return '📊'; // TheMat：图表徽章
+    case 'TheBoomer':
+      return '👴'; // TheBoomer：老人徽章
+    case 'Casual':
+      return '😎'; // Casual：酷炫徽章
+    default:
+      return '';
+  }
+};
+
+// V5.2: 获取气泡样式
+const getBubbleStyle = (message: ChatMessage, isUser: boolean, isGlobalMode: boolean): string => {
+  // 真实用户消息：保持简洁的蓝色背景，不使用 AI 特殊颜色
+  if (isUser) {
+    return 'bg-blue-500/20 border-blue-400/40 text-white';
+  }
+
+  // 官方通告：金色/深黑渐变（优先级最高）
+  if (isGlobalMode && isOfficialAnnouncement(message)) {
+    return 'bg-gradient-to-br from-neon-gold/30 via-yellow-600/20 to-black/40 border-neon-gold/50 text-white shadow-lg shadow-neon-gold/20';
+  }
+
+  const role = message.persona_role;
+
+  // Global 模式：更温和的样式
+  if (isGlobalMode) {
+    if (role === 'Ultra') {
+      // 大厅模式：温和的橙色
+      return 'bg-gradient-to-br from-orange-500/15 to-amber-500/15 border-orange-400/30 text-white';
+    }
+    
+    if (role === 'Analyst') {
+      // 大厅模式：温和的蓝色，带蓝色描边
+      return 'bg-gradient-to-br from-blue-500/15 to-cyan-500/15 border-blue-400/30 text-gray-100';
+    }
+    
+    if (role === 'TheKaki') {
+      // TheKaki：绿色背景
+      return 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30 text-white';
+    }
+    
+    // 其他角色或默认样式
+    return 'bg-surface/60 border-white/10 text-white';
+  }
+
+  // War Room 模式：更激进的样式
+  if (role === 'Ultra') {
+    // Ultra：红色渐变背景
+    return 'bg-gradient-to-br from-red-500/30 to-orange-500/30 border-red-400/50 text-white font-bold';
+  }
+  
+  if (role === 'Analyst') {
+    // Analyst：蓝色描边 + font-mono 字体
+    return 'bg-gradient-to-br from-slate-800/90 to-blue-900/90 border-2 border-blue-500/60 text-gray-100 font-mono shadow-lg shadow-blue-500/20';
+  }
+  
+  if (role === 'TheKaki') {
+    // TheKaki：绿色背景
+    return 'bg-gradient-to-br from-green-500/30 to-emerald-500/30 border-green-400/50 text-white';
+  }
+  
+  // 其他角色或默认样式
+  return 'bg-surface/60 border-white/10 text-white';
+};
+
+// 检测消息中是否包含关键词，返回对应的 CTA 类型
+const detectCTA = (content: string): 'war-room' | 'vip' | null => {
+  const lowerContent = content.toLowerCase();
+  if (lowerContent.includes('war room') || lowerContent.includes('warroom')) {
+    return 'war-room';
+  }
+  if (lowerContent.includes('vip')) {
+    return 'vip';
   }
   return null;
-}
+};
 
-function formatTime(iso: string) {
+// 检测是否是官方通告消息
+const isOfficialAnnouncement = (message: ChatMessage): boolean => {
+  // match_id 为 null 且 persona_name 包含 'OddsFlow' 或 'Admin'
+  return (
+    message.match_id === null &&
+    Boolean(message.persona_name) &&
+    (message.persona_name.toLowerCase().includes('oddsflow') ||
+      message.persona_name.toLowerCase().includes('admin'))
+  );
+};
+
+// V5.2: 检查是否有极端情绪
+const hasExtremeEmotion = (message: ChatMessage): boolean => {
+  const score = message.mood_score;
+  return score !== null && score !== undefined && (score > 8 || score < -8);
+};
+
+// 获取头像初始字母
+const getInitial = (name: string): string => {
+  const trimmed = (name ?? '').trim();
+  if (!trimmed) return '?';
+  return trimmed[0]?.toUpperCase() ?? '?';
+};
+
+// 格式化时间
+const formatTime = (iso: string): string => {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-}
+};
 
-function getInitial(name: string) {
-  const trimmed = (name ?? '').trim();
-  if (!trimmed) return '?';
-  return trimmed[0]?.toUpperCase?.() ?? '?';
-}
-
-function normalizeRow(row: StadiumChatRow): Message | null {
-  const id = toIdNumber(row.id);
-  if (typeof id !== 'number') return null;
-
-  const senderId = typeof row.sender_id === 'number' && Number.isFinite(row.sender_id) ? row.sender_id : 0;
-  const senderType = row.sender_type === 'bot' ? 'bot' : 'user';
-  const nickname = (row.nickname ?? '').trim() || 'Anonymous';
-  const avatarUrl = (row.avatar_url ?? '').trim();
-
-  return {
-    id,
-    content: row.content ?? '',
-    sender_id: senderId,
-    sender_type: senderType,
-    nickname,
-    avatar_url: avatarUrl || undefined,
-    created_at: row.created_at,
-  };
-}
-
-export default function ChatRoom(props: {
-  roomId?: string; // kept for UI compatibility (Stadium Mode is currently single stream)
-  userId: number | null;
-  username: string | null;
-  onBack: () => void;
-}) {
-  const { userId, username, onBack, roomId = 'global' } = props;
-
-  const [messages, setMessages] = useState<Message[]>([]);
+export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWarRoom }: ChatRoomProps) {
+  const isGlobalMode = matchId === undefined || matchId === null;
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [brokenAvatarIds, setBrokenAvatarIds] = useState<Set<string>>(new Set());
+  const [onlineCount, setOnlineCount] = useState(450); // 在线人数模拟器
+  const [likePendingIds, setLikePendingIds] = useState<Set<string>>(new Set());
+  const [hotWarRoom, setHotWarRoom] = useState<{ matchId: number; title: string } | null>(null); // 热门 War Room
 
   const endRef = useRef<HTMLDivElement | null>(null);
-  const messageIdsRef = useRef<Set<number>>(new Set());
-  const composerRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const scrollToBottom = () => {
-    try {
-      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    } catch {
-      // ignore
-    }
-  };
-
+  // 在线人数模拟器：400-500 随机波动
   useEffect(() => {
-    messageIdsRef.current = new Set(messages.map((m) => m.id));
-  }, [messages]);
+    const interval = setInterval(() => {
+      const base = 450;
+      const variation = Math.floor(Math.random() * 100) - 50; // -50 to +50
+      setOnlineCount(Math.max(400, Math.min(500, base + variation)));
+    }, 3000); // 每 3 秒更新一次
 
+    return () => clearInterval(interval);
+  }, []);
+
+  // Global 模式：获取热门 War Room（从消息中提取或从数据库查询）
+  useEffect(() => {
+    if (!isGlobalMode) return;
+
+    const sb = supabase;
+    if (!sb) return;
+
+    // 查询有 Signal 且最近活跃的 War Room
+    // 从 chat_history 中查找包含 match_id 的消息，提取热门比赛
+    const fetchHotWarRoom = async () => {
+      try {
+        // 查询最近有 match_id 的消息（说明有活跃的 War Room）
+        const { data } = await sb
+          .from('chat_history')
+          .select('match_id, content')
+          .not('match_id', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (data && data.length > 0) {
+          // 找到第一个有 match_id 的消息
+          const messageWithMatch = data.find((m: any) => m.match_id);
+          if (messageWithMatch && messageWithMatch.match_id) {
+            // 简化：使用 match_id，实际应该查询 match 表获取完整信息
+            setHotWarRoom({
+              matchId: messageWithMatch.match_id,
+              title: `🔥 Match #${messageWithMatch.match_id}: Signal Active!`,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[ChatRoom] Failed to fetch hot War Room:', err);
+        // 失败时不显示热门 War Room
+      }
+    };
+
+    void fetchHotWarRoom();
+  }, [isGlobalMode]);
+
+  // 自动滚动到底部
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }, 100);
+  }, []);
+
+  // 加载历史消息
+  const loadHistory = useCallback(async () => {
+    const sb = supabase;
+    if (!sb) {
+      console.warn('[ChatRoom] Supabase client is null');
+      return;
+    }
+
+    try {
+      let query = sb
+        .from('chat_history')
+        .select('*')
+        .order('created_at', { ascending: true })
+        .limit(HISTORY_LIMIT);
+
+      // 根据 matchId 过滤
+      if (matchId !== null && typeof matchId === 'number') {
+        // 如果有 matchId，只加载该 match_id 的消息
+        query = query.eq('match_id', matchId);
+      } else {
+        // 如果没有 matchId，加载 match_id 为 null 的全局消息
+        query = query.is('match_id', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[ChatRoom] Failed to load history:', error);
+        return;
+      }
+
+      const rows = (data ?? []) as ChatMessage[];
+      setMessages(rows);
+      scrollToBottom();
+    } catch (err) {
+      console.error('[ChatRoom] Load history error:', err);
+    }
+  }, [matchId, scrollToBottom]);
+
+  // 实时订阅 chat_history 表
   useEffect(() => {
     const sb = supabase;
     if (!sb) return;
 
-    let cancelled = false;
-    setIsLoading(true);
-
-    const loadHistory = async () => {
-      const { data, error } = await sb
-        .from('chat_messages')
-        .select(MESSAGE_SELECT)
-        .order('id', { ascending: false })
-        .limit(HISTORY_LIMIT);
-
-      if (cancelled) return;
-      setIsLoading(false);
-
-      if (error) {
-        console.error('[ChatRoom] Failed to load chat history:', error);
-        return;
-      }
-
-      const rows = (data ?? []) as unknown as StadiumChatRow[];
-      const normalized = rows.map(normalizeRow).filter(Boolean) as Message[];
-      normalized.reverse(); // oldest -> newest
-      setMessages(normalized);
-      queueMicrotask(scrollToBottom);
-    };
-
+    // 先加载历史消息
     void loadHistory();
 
-    const channel = sb
-      .channel('stadium-chat-messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages' }, (payload: any) => {
-        const row = payload?.new as StadiumChatRow | undefined;
-        if (!row) return;
-        const msg = normalizeRow(row);
-        if (!msg) return;
+    // 根据是否有 matchId 创建不同的频道
+    if (matchId !== null && typeof matchId === 'number') {
+      // War Room 模式：监听特定 match_id 的新消息
+      const channel = sb
+        .channel(`realtime-match-${matchId}`)
+        .on(
+      'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_history',
+            filter: `match_id=eq.${matchId}`, // 仅接收当前 War Room 比赛的消息
+          },
+          (payload) => {
+            // 当 n8n 写入新数据时，立即将其推入前端状态
+            const newMessage = payload.new as ChatMessage;
+            
+            // 添加新消息到列表（去重）
+          setMessages((prev) => {
+              // 避免重复添加
+              if (prev.some((m) => m.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
 
-        setMessages((prev) => {
-          if (messageIdsRef.current.has(msg.id) || prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-        queueMicrotask(scrollToBottom);
-      })
-      .subscribe();
+            // 自动滚动到底部
+            scrollToBottom();
+          }
+        )
+        .subscribe();
 
     return () => {
-      cancelled = true;
-      setIsLoading(false);
       try {
         sb.removeChannel(channel);
       } catch {
         // ignore
       }
     };
-  }, []);
+    } else {
+      // Global 模式：监听 match_id 为 null 的全局消息
+      const channel = sb
+        .channel('realtime-global-chat')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_history',
+            filter: 'match_id=is.null', // 仅接收全局消息
+          },
+          (payload) => {
+            const newMessage = payload.new as ChatMessage;
 
-  const title = roomId === 'war-room' ? '💬 Stadium Chat' : '💬 Stadium Chat';
+            // 添加新消息到列表（去重）
+            setMessages((prev) => {
+              // 避免重复添加
+              if (prev.some((m) => m.id === newMessage.id)) {
+                return prev;
+              }
+              return [...prev, newMessage];
+            });
 
-  const renderMessageName = (m: Message) => (m.nickname ?? '').trim() || 'Anonymous';
-  const isMine = useMemo(() => {
-    return (m: Message) => typeof userId === 'number' && Number.isFinite(userId) && m.sender_id === userId;
-  }, [userId]);
+            // 自动滚动到底部
+            scrollToBottom();
+          }
+        )
+      .subscribe();
 
-  const getTelegramIdentity = () => {
-    const tgUser = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user;
-    const tgId = tgUser?.id;
-    const firstName = String(tgUser?.first_name ?? '').trim();
-    const usernameFromTg = String(tgUser?.username ?? '').trim();
-    const photoUrl = String(tgUser?.photo_url ?? '').trim();
-
-    if (typeof tgId === 'number' && Number.isFinite(tgId) && tgId > 0) {
-      return {
-        sender_id: tgId,
-        nickname: firstName || usernameFromTg || 'Anonymous',
-        avatar_url: photoUrl || undefined,
-      };
+    return () => {
+      try {
+        sb.removeChannel(channel);
+      } catch {
+        // ignore
+      }
+    };
     }
+  }, [matchId, loadHistory, scrollToBottom]);
 
-    // Fallback for non-Telegram testing: use props
-    if (typeof userId === 'number' && Number.isFinite(userId) && userId > 0) {
-      return {
-        sender_id: userId,
-        nickname: (username ?? '').trim() || 'Anonymous',
-        avatar_url: undefined,
-      };
-    }
-
-    return null as null;
-  };
-
-  const canSend = useMemo(() => {
-    const identity = getTelegramIdentity();
-    return Boolean(identity) && input.trim().length > 0 && !isSending && Boolean(supabase);
-  }, [input, isSending, userId, username]);
-
-  const handleSendMessage = async () => {
+  // 发送消息
+  const handleSend = useCallback(async () => {
     const sb = supabase;
     if (!sb) return;
-    if (isSending) return;
-
-    const identity = getTelegramIdentity();
-    if (!identity) return;
 
     const content = input.trim();
-    if (!content) return;
+    if (!content || isSending) {
+      return;
+    }
 
     setIsSending(true);
     try {
-      const { data, error } = await sb
-        .from('chat_messages')
-        .insert({
-          content,
-          sender_id: identity.sender_id,
-          sender_type: 'user',
-          nickname: identity.nickname,
-          avatar_url: identity.avatar_url ?? null,
-        })
-        .select(MESSAGE_SELECT)
-        .single();
+      // 真实用户发送时，persona_role 设为 null，persona_name 使用 currentUser.username
+      const { error } = await sb.from('chat_history').insert({
+        user_id: String(currentUser.id), // 转换为 string (Supabase UUID)
+        persona_name: currentUser.username,
+        persona_role: null, // 真实用户消息，persona_role 为 null
+        content,
+        match_id: matchId ?? null,
+        like_count: 0,
+      });
 
       if (error) {
         console.error('[ChatRoom] Send failed:', error);
         return;
       }
 
-      const row = data as unknown as StadiumChatRow;
-      const msg = normalizeRow(row);
+      // 清空输入框
       setInput('');
-      if (msg) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-        queueMicrotask(scrollToBottom);
-      }
+
+      // 消息会通过实时订阅自动添加到列表
+      scrollToBottom();
+    } catch (err) {
+      console.error('[ChatRoom] Send error:', err);
     } finally {
       setIsSending(false);
     }
-  };
+  }, [input, matchId, currentUser, isSending, scrollToBottom]);
+
+  // 乐观点赞：点击后本地数字立马 +1，后台异步调用 RPC 更新
+  const handleLike = useCallback(
+    async (message: ChatMessage) => {
+      const sb = supabase;
+      if (!sb) return;
+
+      const messageId = message.id;
+      if (likePendingIds.has(messageId)) return;
+
+      const currentLikeCount = message.like_count ?? 0;
+      const newLikeCount = currentLikeCount + 1;
+
+      // 乐观更新：立即更新 UI
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, like_count: newLikeCount } : m))
+      );
+
+      setLikePendingIds((prev) => new Set(prev).add(messageId));
+
+      try {
+        // 后台异步调用 RPC 更新（假设有 increment_like_count RPC）
+        const { error } = await sb.rpc('increment_like_count', {
+          message_id: messageId,
+        });
+
+        // 如果 RPC 不存在，使用直接更新
+        if (error && error.message?.includes('function') && error.message?.includes('does not exist')) {
+          const { error: updateError } = await sb
+            .from('chat_history')
+            .update({ like_count: newLikeCount })
+            .eq('id', messageId);
+
+          if (updateError) {
+            throw updateError;
+          }
+        } else if (error) {
+          throw error;
+        }
+      } catch (err) {
+        console.error('[ChatRoom] Like failed, reverting:', err);
+        // 回滚乐观更新
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, like_count: currentLikeCount } : m))
+        );
+      } finally {
+        setLikePendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(messageId);
+          return next;
+        });
+      }
+    },
+    [likePendingIds]
+  );
 
   return (
     <div className="min-h-screen bg-background text-white max-w-md mx-auto relative font-sans flex flex-col">
-      {/* Header */}
+      {/* Header: Live Chat + Online Users */}
       <div className="px-4 pt-6 pb-4 border-b border-white/10 bg-surface/60 backdrop-blur-md">
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
@@ -252,103 +441,266 @@ export default function ChatRoom(props: {
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <div className="text-lg font-black text-neon-gold">{title}</div>
+            <div className="text-lg font-black text-neon-gold">Live Chat</div>
+          </div>
+          {/* 在线人数模拟器 */}
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <Users className="w-4 h-4" />
+            <span className="font-mono">{onlineCount}</span>
+            <span className="text-[10px]">Online</span>
+          </div>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      {/* Message List */}
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {!supabase && (
           <div className="text-sm text-gray-400">
             Supabase is not configured. Please set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
           </div>
         )}
-        {isLoading && <div className="text-xs text-gray-500">Loading messages…</div>}
 
-        {messages.map((m) => {
-          const mine = isMine(m);
-          const name = renderMessageName(m);
-          const avatarUrl = (m.avatar_url ?? '').trim();
-          const showAvatarImage = avatarUrl.length > 0 && !brokenAvatarIds.has(String(m.id));
+        {/* Global 模式：置顶/公告区域 - 热门 War Room */}
+        {isGlobalMode && (
+          <AnimatePresence>
+            {hotWarRoom && (
+              <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="mb-4 rounded-xl bg-gradient-to-r from-neon-gold/20 to-orange-500/20 border border-neon-gold/40 p-3 cursor-pointer hover:from-neon-gold/30 hover:to-orange-500/30 transition-all"
+                onClick={() => {
+                  if (onNavigateToWarRoom) {
+                    onNavigateToWarRoom(hotWarRoom.matchId);
+                  }
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🔥</span>
+                  <span className="text-sm font-bold text-neon-gold">{hotWarRoom.title}</span>
+            </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        )}
+
+        <AnimatePresence>
+          {messages.map((message, index) => {
+            const isUser = isUserMessage(message, currentUser.id);
+            const isOfficial = isGlobalMode && isOfficialAnnouncement(message);
+            const bubbleStyle = getBubbleStyle(message, isUser, isGlobalMode);
+            const extremeEmotion = hasExtremeEmotion(message);
+            const likeCount = message.like_count ?? 0;
+            const isLikePending = likePendingIds.has(message.id);
+            const displayName = message.persona_name || 'Anonymous';
+            const ctaType = isGlobalMode ? detectCTA(message.content) : null; // 只在 Global 模式检测 CTA
+            const hasWarRoomMention = isOfficial && (message.content.toLowerCase().includes('war room') || message.content.toLowerCase().includes('warroom'));
+
+          // 获取角色徽章
+          const roleBadge = getRoleBadge(message.persona_role);
+          
+          // Mood Score Animation: 如果 |mood_score| > 8，增加动画效果
+          const hasExtremeMood = extremeEmotion;
+          const moodAnimationProps = hasExtremeMood
+            ? {
+                animate: {
+                  scale: [1, 1.02, 1],
+                },
+                transition: {
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: 'easeInOut' as const,
+                },
+              }
+            : {};
 
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-              <div className="flex items-end gap-3">
-                <div
-                  className={`w-9 h-9 rounded-full shrink-0 overflow-hidden border ${
-                    mine ? 'border-neon-green/30 bg-neon-green/10' : 'border-neon-gold/25 bg-neon-purple/25'
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2, delay: index * 0.02 }}
+                className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+              >
+                <div className={`flex items-end gap-3 max-w-[85%] ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* Avatar */}
+                  <div
+                    className={`w-8 h-8 rounded-full shrink-0 overflow-hidden border ${
+                      isUser
+                        ? 'border-blue-400/30 bg-blue-500/10'
+                        : isOfficial
+                          ? 'border-neon-gold/50 bg-gradient-to-br from-neon-gold/20 to-yellow-600/10 shadow-md shadow-neon-gold/30'
+                          : 'border-neon-gold/30 bg-neon-purple/20'
                   } flex items-center justify-center text-xs font-black text-white`}
-                  aria-label={`${name} avatar`}
-                  title={name}
                 >
-                  {showAvatarImage ? (
+                    {message.avatar_url ? (
                     <img
-                      src={avatarUrl}
-                      alt={`${name} avatar`}
+                        src={message.avatar_url}
+                        alt={displayName}
                       className="w-full h-full object-cover"
                       loading="lazy"
                       referrerPolicy="no-referrer"
-                      onError={() => {
-                        setBrokenAvatarIds((prev) => {
-                          const next = new Set(prev);
-                          next.add(String(m.id));
-                          return next;
-                        });
-                      }}
                     />
                   ) : (
-                    <span className="select-none">{getInitial(name)}</span>
+                      <span className="select-none">{getInitial(displayName)}</span>
                   )}
                 </div>
 
-                <div
-                  className={`max-w-[82%] rounded-2xl px-4 py-3 border ${
-                    mine ? 'bg-neon-green/15 border-neon-green/30' : 'bg-surface/60 border-white/10'
-                  }`}
-                >
+                  {/* Message Bubble */}
+                  <motion.div
+                    {...moodAnimationProps}
+                    className={`rounded-2xl px-4 py-3 border ${bubbleStyle} ${
+                      hasExtremeMood ? 'drop-shadow-[0_0_15px_rgba(239,68,68,0.6)]' : ''
+                    } ${isOfficial && hasWarRoomMention ? 'cursor-pointer hover:shadow-xl hover:shadow-neon-gold/30 transition-all' : ''}`}
+                    onClick={() => {
+                      // 官方通告点击交互：如果提到 War Room，跳转到首页或显示 Toast
+                      if (isOfficial && hasWarRoomMention) {
+                        // 显示 Toast 提示
+                        const toast = document.createElement('div');
+                        toast.className =
+                          'fixed top-4 left-1/2 -translate-x-1/2 bg-neon-gold text-black px-4 py-2 rounded-lg shadow-lg z-50 font-bold text-sm';
+                        toast.textContent = 'Go to Home to find this match!';
+                        document.body.appendChild(toast);
+                        
+                        setTimeout(() => {
+                          toast.style.opacity = '0';
+                          toast.style.transition = 'opacity 0.3s';
+                          setTimeout(() => {
+                            document.body.removeChild(toast);
+                          }, 300);
+                        }, 2000);
+                        
+                        // 可选：延迟后跳转到首页
+                        setTimeout(() => {
+                          onBack();
+                        }, 2500);
+                      }
+                    }}
+                  >
+                    {/* Header: Name and Time */}
                   <div className="flex items-center justify-between gap-3 mb-1">
-                    <span className={`text-xs font-semibold ${mine ? 'text-neon-green' : 'text-gray-300'}`}>
-                      {name}
+                      <div className="flex items-center gap-2">
+                        {/* 官方通告图标 */}
+                        {isOfficial && (
+                          <span className="text-base">📢</span>
+                        )}
+                        {/* Verified Badge: 根据 persona_role 显示对应的 Emoji 徽章 */}
+                        {!isOfficial && !isUser && roleBadge && (
+                          <span className="text-sm" title={`${message.persona_role} Agent`}>
+                            {roleBadge}
                     </span>
-                    <span className="text-[10px] text-gray-500">{formatTime(m.created_at)}</span>
+                        )}
+                        {/* Ultra 火焰图标（如果没有使用徽章） */}
+                        {!isOfficial && !isUser && !roleBadge && message.persona_role === 'Ultra' && (
+                          <Flame className="w-4 h-4 text-orange-500" />
+                        )}
+                        <span
+                          className={`text-xs font-semibold ${
+                            isUser
+                              ? 'text-blue-300'
+                              : isOfficial
+                                ? 'text-neon-gold font-bold'
+                                : message.persona_role === 'Analyst'
+                                  ? 'text-blue-300 font-mono'
+                                  : 'text-gray-300'
+                          }`}
+                        >
+                          {displayName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-gray-500">{formatTime(message.created_at)}</span>
+                      </div>
+
+                    {/* Content */}
+                    <div
+                      className={`text-sm whitespace-pre-wrap break-words ${
+                        extremeEmotion ? 'font-bold' : ''
+                      } ${
+                        message.persona_role === 'Analyst' ? 'font-mono' : ''
+                      }`}
+                    >
+                      {message.content}
+                    </div>
+
+                    {/* CTA Button (Global 模式：检测关键词) */}
+                    {isGlobalMode && ctaType && !isUser && (
+                      <div className="mt-2">
+                    <button
+                          onClick={() => {
+                            if (ctaType === 'war-room' && onNavigateToWarRoom) {
+                              // 尝试从消息中提取 match_id，或使用默认值
+                              const matchIdFromMessage = message.match_id;
+                              if (matchIdFromMessage) {
+                                onNavigateToWarRoom(matchIdFromMessage);
+                              }
+                            } else if (ctaType === 'vip') {
+                              // VIP 相关操作（可以触发 VIP 购买流程）
+                              // 这里可以触发一个自定义事件或调用回调
+                              window.dispatchEvent(new CustomEvent('open-vip-modal'));
+                            }
+                          }}
+                          className={`w-full py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                            ctaType === 'war-room'
+                              ? 'bg-gradient-to-r from-neon-gold to-orange-500 text-black hover:shadow-lg hover:shadow-neon-gold/50'
+                              : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:shadow-lg hover:shadow-purple-500/50'
+                          }`}
+                        >
+                          {ctaType === 'war-room' ? '🚀 Check War Room' : '💎 Get VIP'}
+                    </button>
+                      </div>
+                    )}
+
+                    {/* Like Button (only for non-user messages) */}
+                    {!isUser && (
+                      <div className="mt-2 flex items-center gap-2">
+                    <button
+                          onClick={() => void handleLike(message)}
+                          disabled={isLikePending || !supabase}
+                      className={`inline-flex items-center gap-1.5 text-[11px] transition-colors ${
+                            likeCount > 0 ? 'text-neon-gold' : 'text-gray-400 hover:text-neon-gold'
+                          } ${isLikePending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      aria-label="Like"
+                    >
+                          <Heart
+                            className={`w-4 h-4 ${extremeEmotion ? 'animate-bounce' : ''}`}
+                            fill={likeCount > 0 ? 'currentColor' : 'none'}
+                          />
+                      <span className="font-semibold">{likeCount}</span>
+                    </button>
                   </div>
-                  <div className="text-sm text-white whitespace-pre-wrap break-words">{m.content}</div>
+                    )}
+                  </motion.div>
                 </div>
-              </div>
-            </div>
+              </motion.div>
           );
         })}
+        </AnimatePresence>
 
         <div ref={endRef} />
       </div>
 
-      {/* Composer (read-only for now) */}
-      <div
-        ref={composerRef}
-        className="px-4 pb-5 pt-3 border-t border-white/10 bg-surface/80 backdrop-blur-md"
-      >
-        {!canSend && (
-          <div className="mb-2 text-xs text-gray-400">
-            To send messages, open inside Telegram (or provide a dev identity).
-          </div>
-        )}
+      {/* Input Composer */}
+      <div className="px-4 pb-5 pt-3 border-t border-white/10 bg-surface/80 backdrop-blur-md">
         <div className="flex gap-2">
           <input
-            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 bg-surface-highlight border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-neon-gold/50"
             onKeyDown={(e) => {
-              if (e.key === 'Enter') void handleSendMessage();
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                void handleSend();
+              }
             }}
             disabled={!supabase || isSending}
           />
           <button
-            onClick={() => void handleSendMessage()}
-            disabled={!canSend}
+            onClick={() => void handleSend()}
+            disabled={!supabase || isSending || !input.trim()}
             className={`p-2 rounded-lg transition-all ${
-              canSend
+              input.trim()
                 ? 'bg-gradient-to-r from-neon-gold to-orange-500 text-black hover:shadow-lg hover:shadow-neon-gold/50'
                 : 'bg-white/5 text-gray-500 cursor-not-allowed'
             }`}
@@ -361,5 +713,3 @@ export default function ChatRoom(props: {
     </div>
   );
 }
-
-
