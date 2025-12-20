@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@supabase/supabase-js';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
@@ -64,70 +65,17 @@ interface SignalItem {
 }
 
 // Import generated signals from CSV data (colleague's Supabase data)
-// Note: The generated file exports MOCK_SIGNALS, we'll import and use it directly
-// For now, keeping the inline data but you can switch to import when ready:
-// import { MOCK_SIGNALS } from '../data/generatedSignals';
+import { MOCK_SIGNALS as GENERATED_SIGNALS } from '../data/generatedSignals';
 
-const MOCK_SIGNALS: SignalItem[] = [
-  {
-    id: 1,
-    type: 'analysis',
-    category: 'hdp',
-    league: 'Premier League',
-    time: `LIVE 12'`,
-    status: 'LIVE',
-    timestamp: `12'`,
-    title: 'Newcastle vs Chelsea',
-    strategy: '🟢 追主队',
-    suggestion: 'Home -0.5',
-    reasoning: '赛事刚开始，盘口和水位初步稳定。主队让平半 (-0.5) 盘。',
-    stats: [
-      '趋势: 赛事刚开始，盘口和水位初步稳定。主队让平半 (-0.5) 盘。',
-      '变盘: 主队水位 1.88 (✅ 稳健水位)',
-      '抽水: Initial Line: Home -0.5 (开盘即是当前盘口，无变化)'
-    ],
-    guruComment: 'Eh brader，比赛 baru start (刚开始) 哦！这个 1.88 的水位很 cantik (漂亮)，符合我们的最低要求，可以跟啦！Jangan kacau (不要搞事)，先进场 1 Unit 先，看下半场有什么 drama。'
-  },
-  {
-    id: 2,
-    type: 'analysis',
-    category: 'hdp',
-    league: 'Premier League',
-    time: `LIVE 0'`,
-    status: 'LIVE',
-    timestamp: `0'`,
-    title: 'Newcastle vs Chelsea',
-    strategy: '🔥 倍投反打(回血)',
-    suggestion: 'Away 0 (Chelsea Draw No Bet)',
-    reasoning: '市场对主队信心崩塌，盘口从主队让0.5球退到平手盘 (0)，显示庄家对主队赢球信心大减。',
-    stats: [
-      '趋势: 市场对主队信心崩塌，盘口从主队让0.5球退到平手盘 (0)，显示庄家对主队赢球信心大减。',
-      '变盘: 主队水位 1.50 (❌ 水位太烂，诱导陷阱)。客队水位 1.92 (✅ 黄金水位，可搏)。',
-      '抽水: Home -0.5 ➜ 0 (退盘，主队降盘)'
-    ],
-    guruComment: 'Walao eh，这个Newcastle的盘口从让半球直接拉回平手盘，摆明就是庄家不看好它了啦！之前追主队的单子肯定 kantoi 了，现在不要 itch hand (手痒) 傻傻等，立刻 2.5 Unit 反手买 Chelsea 的平手盘，这个 1.92 水位很香，是时候博回血了！盘口不骗人，退盘就代表有问题，我们直接反打！'
-  },
-  {
-    id: 3,
-    type: 'analysis',
-    category: 'ou',
-    league: 'Premier League',
-    time: `LIVE 0'`,
-    status: 'LIVE',
-    timestamp: `0'`,
-    title: 'Newcastle vs Chelsea',
-    strategy: '🟢 坚决追大',
-    suggestion: 'Over 2.75',
-    reasoning: '庄家逆势升盘 (Line Up)!',
-    stats: [
-      '趋势: 庄家逆势升盘 (Line Up)!',
-      '变盘: 当前赔率 1.88 (✅ 黄金水位)',
-      '抽水: 5.8% (正常)'
-    ],
-    guruComment: 'Eh！你看你看，这场球还没开踢咧！才第0分钟，庄家就敢把盘口从 2.25 升到 2.75 了！这种逆势升盘，摆明是大球热到发烧，庄家宁愿把水位拉高一点让你追，也不敢让盘口跌下去给你便宜买！这种强势信号，哪里可以错过？Over 2.75 赔率 1.88，漂亮！赶紧跟上，1 Unit 标准注码，先进场等开波！'
-  }
-  // Full dataset with 39 signals available in src/data/generatedSignals.ts
-];
+// PRE_MATCH signals: Only SNIPER ACTION (1X2) for matches that haven't started
+// These are used when match.status === 'PRE_MATCH'
+const PRE_MATCH_SIGNALS: SignalItem[] = GENERATED_SIGNALS
+  .filter((s): s is SignalItem => s.type === 'sniper' && s.category === '1x2')
+  .map(s => ({
+    ...s,
+    status: 'PRE_MATCH', // Override status for PRE_MATCH display
+    time: s.time.replace('LIVE ', '').trim(), // Remove LIVE prefix for PRE_MATCH
+  }));
 
 // BettingSheet Component
 interface BettingSheetProps {
@@ -463,12 +411,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
         {/* TODO: Enable this button when Auto-Betting feature is ready */}
         {false && (
-          <button
-            onClick={handlePlaceBet}
-            className="w-full mt-2 py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
-          >
-            Follow Bet
-          </button>
+        <button
+          onClick={handlePlaceBet}
+          className="w-full mt-2 py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
+        >
+          Follow Bet
+        </button>
         )}
       </div>
     </div>
@@ -572,12 +520,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               </button>
               {/* TODO: Enable this button when Auto-Betting feature is ready */}
               {false && (
-                <button
-                  onClick={handlePlaceBet}
-                  className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
-                >
-                  Follow Bet
-                </button>
+              <button
+                onClick={handlePlaceBet}
+                className="w-full py-2 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-bold text-sm rounded-lg hover:shadow-lg hover:shadow-neon-gold/40 transition-all"
+              >
+                Follow Bet
+              </button>
               )}
             </div>
           </>
@@ -644,8 +592,185 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     </>
   );
 
+  // Supabase client for fetching LIVE signals
+  const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined);
+  const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
+  const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+  // State for LIVE signals from Supabase
+  const [liveSignals, setLiveSignals] = useState<SignalItem[]>([]);
+
+  // Fetch LIVE signals from Supabase when match is LIVE
+  useEffect(() => {
+    if (match.status !== 'LIVE' || !supabase) {
+      setLiveSignals([]);
+      return;
+    }
+
+    // Fetch signals from David's Supabase tables
+    const fetchLiveSignals = async () => {
+      try {
+        // Fetch from handicap, over_under, and moneyline tables
+        const [handicapRes, overUnderRes, moneylineRes] = await Promise.all([
+          supabase
+            .from('handicap')
+            .select('*')
+            .eq('fixture_id', match.id)
+            .order('created_at', { ascending: false })
+            .limit(10),
+          supabase
+            .from('over_under')
+            .select('*')
+            .eq('fixture_id', match.id)
+            .order('created_at', { ascending: false })
+            .limit(10),
+          supabase
+            .from('moneyline')
+            .select('*')
+            .eq('fixture_id', match.id)
+            .order('created_at', { ascending: false })
+            .limit(10),
+        ]);
+
+        const signals: SignalItem[] = [];
+
+        // Transform handicap signals
+        if (handicapRes.data) {
+          handicapRes.data.forEach((h: any) => {
+            if (h.signal && !h.signal.includes('观望')) {
+              signals.push({
+                id: signals.length + 1,
+                type: 'analysis',
+                category: 'hdp',
+                league: h.league_name || match.league,
+                time: h.clock ? `LIVE ${h.clock}'` : 'LIVE',
+                status: 'LIVE',
+                timestamp: h.clock ? `${h.clock}'` : '0\'',
+                title: `${h.home_name} vs ${h.away_name}`,
+                strategy: h.signal,
+                suggestion: h.selection || `Line ${h.line}`,
+                reasoning: h.market_analysis_trend_direction || h.stacking_plan_description || '',
+                stats: [
+                  `趋势: ${h.market_analysis_trend_direction || 'N/A'}`,
+                  `变盘: ${h.market_analysis_odds_check || 'N/A'}`,
+                  `抽水: ${h.market_analysis_vig_status || 'N/A'}`
+                ],
+                guruComment: h.commentary_malaysia || h.stacking_plan_description || ''
+              });
+            }
+          });
+        }
+
+        // Transform over/under signals
+        if (overUnderRes.data) {
+          overUnderRes.data.forEach((ou: any) => {
+            if (ou.signal && !ou.signal.includes('观望')) {
+              signals.push({
+                id: signals.length + 1,
+                type: 'analysis',
+                category: 'ou',
+                league: ou.league_name || match.league,
+                time: ou.clock ? `LIVE ${ou.clock}'` : 'LIVE',
+                status: 'LIVE',
+                timestamp: ou.clock ? `${ou.clock}'` : '0\'',
+                title: `${ou.home_name} vs ${ou.away_name}`,
+                strategy: ou.signal,
+                suggestion: `Over ${ou.line}`,
+                reasoning: ou.market_analysis_trend_direction || ou.stacking_plan_description || '',
+                stats: [
+                  `趋势: ${ou.market_analysis_trend_direction || 'N/A'}`,
+                  `变盘: ${ou.market_analysis_odds_check || 'N/A'}`,
+                  `抽水: ${ou.market_analysis_vig_status || 'N/A'}`
+                ],
+                guruComment: ou.commentary_malaysia || ou.stacking_plan_description || ''
+              });
+            }
+          });
+        }
+
+        // Transform moneyline signals
+        if (moneylineRes.data) {
+          moneylineRes.data.forEach((m: any) => {
+            if (m.signal && !m.signal.includes('观望')) {
+              signals.push({
+                id: signals.length + 1,
+                type: 'sniper',
+                category: '1x2',
+                league: m.league_name || match.league,
+                time: m.clock ? `LIVE ${m.clock}'` : 'LIVE',
+                status: 'LIVE',
+                timestamp: m.clock ? `${m.clock}'` : '0\'',
+                title: `${m.home_name} vs ${m.away_name}`,
+                market: m.selection || 'Home Win',
+                odds: parseFloat(m.moneyline_1x2_home || m.moneyline_1x2_away || 2.0),
+                unit: '+1',
+                statusText: 'Active 🎯'
+              });
+            }
+          });
+        }
+
+        setLiveSignals(signals);
+      } catch (error) {
+        console.error('Error fetching live signals:', error);
+      }
+    };
+
+    void fetchLiveSignals();
+
+    // Set up realtime subscription for LIVE signals
+    if (supabase) {
+      const channels = [
+        supabase
+          .channel(`handicap-${match.id}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'handicap',
+            filter: `fixture_id=eq.${match.id}`,
+          }, () => {
+            void fetchLiveSignals();
+          })
+          .subscribe(),
+        supabase
+          .channel(`over_under-${match.id}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'over_under',
+            filter: `fixture_id=eq.${match.id}`,
+          }, () => {
+            void fetchLiveSignals();
+          })
+          .subscribe(),
+        supabase
+          .channel(`moneyline-${match.id}`)
+          .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'moneyline',
+            filter: `fixture_id=eq.${match.id}`,
+          }, () => {
+            void fetchLiveSignals();
+          })
+          .subscribe(),
+      ];
+
+      return () => {
+        channels.forEach(ch => supabase.removeChannel(ch));
+      };
+    }
+  }, [match.status, match.id, match.league, supabase]);
+
+  // Determine which signals to display based on match status
+  const availableSignals = match.status === 'LIVE' 
+    ? liveSignals  // LIVE: Use signals from Supabase (HDP, O/U, 1X2) - real-time from David's Supabase
+    : PRE_MATCH_SIGNALS; // PRE_MATCH: Only show SNIPER ACTION (1X2) - no analysis until match starts
+
   // Filter and order signals: Sniper first, then Analysis
-  const filteredSignals = MOCK_SIGNALS.filter(
+  const filteredSignals = availableSignals.filter(
     (s) => filterCategory === 'all' || s.category === filterCategory
   );
   const orderedSignals = [
@@ -827,11 +952,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               {/* Strict Gating: 只有当 signal 存在且不为空字符串时才渲染 ChatRoom */}
               {match.analysis.signal && match.analysis.signal.trim().length > 0 ? (
                 chatUserId && chatUsername ? (
-                  <ChatRoom
+              <ChatRoom
                     matchId={match.id}
                     currentUser={{ id: chatUserId, username: chatUsername }}
-                    onBack={() => setActiveTab('signals')}
-                  />
+                onBack={() => setActiveTab('signals')}
+              />
                 ) : (
                   <div className="text-sm text-gray-400 p-4">
                     Chat is not available. Please ensure you are logged in.
