@@ -592,20 +592,41 @@ function App() {
                   className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
                 >
                   <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                        <Trophy size={10} /> {match.league}
-                      </span>
-                      <h3 className="text-lg font-bold mt-1">
-                        {match.home} <span className="text-gray-500 text-sm">vs</span> {match.away}
-                      </h3>
-                      {match.status === 'LIVE' && (
-                        <span className="text-neon-red font-mono text-xs animate-pulse block mt-1">
-                          ● LIVE {match.score}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                          <Trophy size={10} /> {match.league}
                         </span>
-                      )}
+                        {match.date && (
+                          <span className="text-[10px] text-gray-500 font-mono">{match.date}</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {match.homeLogo && (
+                          <img src={match.homeLogo} alt={match.home} className="w-6 h-6 object-contain" />
+                        )}
+                        <h3 className="text-lg font-bold">
+                          {match.home} <span className="text-gray-500 text-sm">vs</span> {match.away}
+                        </h3>
+                        {match.awayLogo && (
+                          <img src={match.awayLogo} alt={match.away} className="w-6 h-6 object-contain" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {match.score && (
+                          <span className="text-sm font-mono text-white">{match.score}</span>
+                        )}
+                        {match.status === 'LIVE' && (
+                          <span className="text-neon-red font-mono text-xs animate-pulse">
+                            ● LIVE
+                          </span>
+                        )}
+                        {!match.status === 'LIVE' && match.time && (
+                          <span className="text-xs text-gray-400 font-mono">{match.time}</span>
+                        )}
+                      </div>
                     </div>
-                    <button onClick={() => toggleStar(match.id)}>
+                    <button onClick={() => toggleStar(match.id)} className="ml-2">
                       <Star className="text-neon-gold" fill="#FFC200" size={20} />
                     </button>
                   </div>
