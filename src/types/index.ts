@@ -12,7 +12,7 @@ export interface ChatMessage {
   avatar_url?: string; // 头像链接
 
   // V5.2 AI 核心字段
-  persona_role?: 'Ultra' | 'Analyst' | 'TheMat' | 'TheKaki' | 'TheBoomer' | 'Casual' | null; // 角色类型，用于控制气泡样式
+  persona_role?: 'Ultra' | 'Analyst' | 'TheMat' | 'TheKaki' | 'TheBoomer' | 'Casual' | 'Official' | null; // 角色类型，用于控制气泡样式（Official 用于 Global Chat 中的官方带货消息）
   content: string; // 消息内容
   mood_score?: number; // 情绪分 (绝对值 > 8 时触发特效)
   like_count: number; // 点赞数
