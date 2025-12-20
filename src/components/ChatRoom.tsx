@@ -441,7 +441,9 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
           >
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-            <div className="text-lg font-black text-neon-gold">Live Chat</div>
+            <div className="text-lg font-black text-neon-gold">
+              {isGlobalMode ? 'Global Chat' : 'Live Chat'}
+            </div>
           </div>
           {/* 在线人数模拟器 */}
           <div className="flex items-center gap-2 text-xs text-gray-400">

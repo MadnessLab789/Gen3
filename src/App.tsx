@@ -571,7 +571,7 @@ function App() {
             }}
             className="bg-surface-highlight px-3 py-3 rounded-lg text-xs font-mono border border-neon-gold/30 text-neon-gold hover:border-neon-gold/50 hover:bg-surface-highlight/80 transition-all"
           >
-            CHAT
+            GLOBAL CHAT
         </button>
         </div>
       </div>
