@@ -242,7 +242,20 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
       }
 
       const rows = (data ?? []) as ChatMessage[];
-      setMessages(rows);
+      
+      // 额外过滤：确保 Global Chat 只显示 match_id 为 null 的消息
+      // War Room 只显示 match_id 匹配的消息
+      const filteredRows = rows.filter((msg) => {
+        if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
+          // War Room 模式：只显示 match_id 等于当前 matchId 的消息
+          return msg.match_id === matchId;
+        } else {
+          // Global Chat 模式：只显示 match_id 为 null 的消息
+          return msg.match_id === null;
+        }
+      });
+      
+      setMessages(filteredRows);
       scrollToBottom();
     } catch (err) {
       console.error('[ChatRoom] Load history error:', err);
@@ -274,6 +287,12 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
           (payload) => {
             // 当 n8n 写入新数据时，立即将其推入前端状态
             const newMessage = payload.new as ChatMessage;
+            
+            // 额外验证：确保消息的 match_id 匹配当前 matchId（War Room 模式）
+            if (newMessage.match_id !== matchId) {
+              console.warn('[ChatRoom] War Room received message with mismatched match_id, ignoring:', newMessage);
+              return;
+            }
             
             // 添加新消息到列表（去重）
           setMessages((prev) => {
@@ -311,6 +330,12 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
           },
           (payload) => {
             const newMessage = payload.new as ChatMessage;
+
+            // 额外验证：确保消息的 match_id 为 null（Global Chat 模式）
+            if (newMessage.match_id !== null) {
+              console.warn('[ChatRoom] Global Chat received message with non-null match_id, ignoring:', newMessage);
+      return;
+    }
 
             // 添加新消息到列表（去重）
             setMessages((prev) => {
@@ -350,14 +375,25 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
     setIsSending(true);
     try {
       // 真实用户发送时，persona_role 设为 null，persona_name 使用 currentUser.username
-      const { error } = await sb.from('chat_history').insert({
+      // 确保 Global Chat 模式下 match_id 明确设置为 null
+      const messageData: any = {
         user_id: String(currentUser.id), // 转换为 string (Supabase UUID)
         persona_name: currentUser.username,
         persona_role: null, // 真实用户消息，persona_role 为 null
         content,
-        match_id: matchId ?? null,
         like_count: 0,
-      });
+      };
+
+      // War Room 模式：设置 match_id（必须是数字）
+      // Global Chat 模式：match_id 必须为 null
+      if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
+        messageData.match_id = matchId;
+      } else {
+        // Global Chat：明确设置为 null
+        messageData.match_id = null;
+      }
+
+      const { error } = await sb.from('chat_history').insert(messageData);
 
       if (error) {
         console.error('[ChatRoom] Send failed:', error);
