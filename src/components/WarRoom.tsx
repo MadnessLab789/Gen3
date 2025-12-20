@@ -602,24 +602,28 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       return;
     }
 
+    const sb = supabase; // Store in local variable for null safety
+
     // Fetch signals from David's Supabase tables
     const fetchLiveSignals = async () => {
+      if (!sb) return;
+      
       try {
         // Fetch from handicap, over_under, and moneyline tables
         const [handicapRes, overUnderRes, moneylineRes] = await Promise.all([
-          supabase
+          sb
             .from('handicap')
             .select('*')
             .eq('fixture_id', match.id)
             .order('created_at', { ascending: false })
             .limit(10),
-          supabase
+          sb
             .from('over_under')
             .select('*')
             .eq('fixture_id', match.id)
             .order('created_at', { ascending: false })
             .limit(10),
-          supabase
+          sb
             .from('moneyline')
             .select('*')
             .eq('fixture_id', match.id)
@@ -714,48 +718,48 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     void fetchLiveSignals();
 
     // Set up realtime subscription for LIVE signals
-    if (supabase) {
-      const channels = [
-        supabase
-          .channel(`handicap-${match.id}`)
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'handicap',
-            filter: `fixture_id=eq.${match.id}`,
-          }, () => {
-            void fetchLiveSignals();
-          })
-          .subscribe(),
-        supabase
-          .channel(`over_under-${match.id}`)
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'over_under',
-            filter: `fixture_id=eq.${match.id}`,
-          }, () => {
-            void fetchLiveSignals();
-          })
-          .subscribe(),
-        supabase
-          .channel(`moneyline-${match.id}`)
-          .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'moneyline',
-            filter: `fixture_id=eq.${match.id}`,
-          }, () => {
-            void fetchLiveSignals();
-          })
-          .subscribe(),
-      ];
+    if (!sb) return;
+    
+    const channels = [
+      sb
+        .channel(`handicap-${match.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'handicap',
+          filter: `fixture_id=eq.${match.id}`,
+        }, () => {
+          void fetchLiveSignals();
+        })
+        .subscribe(),
+      sb
+        .channel(`over_under-${match.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'over_under',
+          filter: `fixture_id=eq.${match.id}`,
+        }, () => {
+          void fetchLiveSignals();
+        })
+        .subscribe(),
+      sb
+        .channel(`moneyline-${match.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'moneyline',
+          filter: `fixture_id=eq.${match.id}`,
+        }, () => {
+          void fetchLiveSignals();
+        })
+        .subscribe(),
+    ];
 
-      return () => {
-        channels.forEach(ch => supabase.removeChannel(ch));
-      };
-    }
-  }, [match.status, match.id, match.league, supabase]);
+    return () => {
+      channels.forEach(ch => sb.removeChannel(ch));
+    };
+  }, [match.status, match.id, match.league]);
 
   // Determine which signals to display based on match status
   const availableSignals = match.status === 'LIVE' 
