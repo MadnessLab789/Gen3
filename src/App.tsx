@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
+import { MOCK_MATCHES } from './data/generatedMatches';
 
 declare global {
   interface Window {
@@ -100,99 +101,15 @@ const refreshData = (setMatchesFn: (matches: Match[]) => void) => {
   );
 };
 
+// --- Import full dataset from colleague's Supabase data ---
+import { MOCK_MATCHES as GENERATED_MATCHES } from './data/generatedMatches';
+
 // --- Initial Matches (from colleague's Supabase data) ---
-const INITIAL_MATCHES: Match[] = [
-  {
-    id: 353,
-    league: 'Premier League',
-    home: 'Newcastle',
-    away: 'Chelsea',
-    time: '20:30',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['🔥 Live'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'Away +0 (Level Ball) @1.92',
-      odds: 1.5,
-      confidence: 60,
-      guruComment: 'Eh brader, tadi dah tekan (press) Chelsea (Away +0) 2.5 unit. Sekarang odds dan line sama saja, jangan itchy hand (手痒) lagi lah! Duduk diam-diam, tunggu gol! Ini盘口退让，主队水位又这样烂，很明显庄家要你冲Newcastle，我们不吃这一套',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 354,
-    league: 'Premier League',
-    home: 'Wolves',
-    away: 'Brentford',
-    time: '23:00',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['📊 Analysis'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'N/A',
-      odds: 1,
-      confidence: 50,
-      guruComment: '',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 355,
-    league: 'Premier League',
-    home: 'Manchester City',
-    away: 'West Ham',
-    time: '23:00',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['📊 Analysis'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'N/A',
-      odds: 1,
-      confidence: 50,
-      guruComment: '',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 356,
-    league: 'Premier League',
-    home: 'Brighton',
-    away: 'Sunderland',
-    time: '23:00',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['📊 Analysis'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'N/A',
-      odds: 1,
-      confidence: 50,
-      guruComment: '',
-    },
-    chartData: generateWaveData(),
-  },
-  {
-    id: 357,
-    league: 'Premier League',
-    home: 'Tottenham',
-    away: 'Liverpool',
-    time: '01:30',
-    status: 'PRE_MATCH',
-    isStarred: false,
-    tags: ['📊 Analysis'],
-    tagColor: 'neon-blue',
-    analysis: {
-      signal: 'N/A',
-      odds: 1,
-      confidence: 50,
-      guruComment: '',
-    },
-    chartData: generateWaveData(),
-  },
-];
+// Use all 50 matches from the generated dataset, adding chartData to each
+const INITIAL_MATCHES: Match[] = GENERATED_MATCHES.map((match) => ({
+  ...match,
+  chartData: generateWaveData(),
+}));
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
