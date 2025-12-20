@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../supabaseClient';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
@@ -591,13 +591,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       </motion.div>
     </>
   );
-
-  // Supabase client for fetching LIVE signals
-  const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined);
-  const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined);
-  const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
 
   // State for LIVE signals from Supabase
   const [liveSignals, setLiveSignals] = useState<SignalItem[]>([]);

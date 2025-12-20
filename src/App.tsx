@@ -621,7 +621,7 @@ function App() {
                             ● LIVE
                           </span>
                         )}
-                        {!match.status === 'LIVE' && match.time && (
+                        {match.status !== 'LIVE' && match.time && (
                           <span className="text-xs text-gray-400 font-mono">{match.time}</span>
                         )}
                       </div>
