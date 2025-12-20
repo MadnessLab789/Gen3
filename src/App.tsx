@@ -56,8 +56,11 @@ interface Match {
   time: string;
   status: 'LIVE' | 'PRE_MATCH';
   score?: string;
+  date?: string; // 比赛日期 (e.g., "December 20")
+  homeLogo?: string; // 主队 logo URL
+  awayLogo?: string; // 客队 logo URL
   isStarred: boolean;
-  tags: string[];
+  tags: string[]; // 这些 tags 只在 War Room 显示，主页不显示
   tagColor?: string;
   analysis: Analysis;
   chartData: any[];
@@ -686,28 +689,51 @@ function App() {
               layoutId={`match-${match.id}`}
               key={match.id}
               className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
-              onClick={() => toggleStar(match.id)}
+              onClick={() => {
+                setActiveMatch(match);
+                setCurrentView('warroom');
+              }}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-12 text-center border-r border-white/5 pr-3">
-                   <span className="text-xs font-mono text-gray-400 block">{match.time.replace('LIVE', '')}</span>
-                   {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
+              <div className="flex items-center gap-3 flex-1">
+                {/* Date and Time */}
+                <div className="w-16 text-center border-r border-white/5 pr-3">
+                  {match.date && (
+                    <span className="text-[10px] font-mono text-gray-400 block mb-0.5">{match.date}</span>
+                  )}
+                  <span className="text-xs font-mono text-gray-300 block">{match.time.replace('LIVE', '').trim()}</span>
+                  {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-white mb-1">
-                    {match.home} <span className="text-gray-600">vs</span> {match.away}
+                
+                {/* Team Logos and Names */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  {/* Home Team */}
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                    {match.homeLogo ? (
+                      <img src={match.homeLogo} alt={match.home} className="w-5 h-5 object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex-shrink-0"></div>
+                    )}
+                    <span className="text-sm font-medium text-white truncate">{match.home}</span>
                   </div>
-                  <div className="flex gap-2">
-                    {match.tags.map((tag) => (
-                      <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10">
-                        {tag}
-                      </span>
-                    ))}
+                  
+                  {/* Score or VS */}
+                  <div className="text-xs text-gray-500 font-mono mx-1 flex-shrink-0">
+                    {match.score || 'vs'}
+                  </div>
+                  
+                  {/* Away Team */}
+                  <div className="flex items-center gap-1.5 min-w-0 flex-1 justify-end">
+                    <span className="text-sm font-medium text-white truncate text-right">{match.away}</span>
+                    {match.awayLogo ? (
+                      <img src={match.awayLogo} alt={match.away} className="w-5 h-5 object-contain flex-shrink-0" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-white/10 flex-shrink-0"></div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors">
+              <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors ml-2">
                 <Star size={18} />
               </div>
             </motion.div>

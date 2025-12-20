@@ -79,8 +79,24 @@ function getStatus(statusShort, statusElapsed) {
 
 // Helper function to format score
 function formatScore(goalsHome, goalsAway, statusShort) {
-  if (statusShort === 'NS' || !goalsHome || !goalsAway) return undefined;
-  return `${goalsHome}-${goalsAway}`;
+  // Always show score if goals exist, even for NS (not started) matches
+  if (goalsHome !== undefined && goalsAway !== undefined && goalsHome !== null && goalsAway !== null) {
+    return `${goalsHome}-${goalsAway}`;
+  }
+  return undefined;
+}
+
+// Helper function to format date
+function formatDate(dateStr) {
+  if (!dateStr) return undefined;
+  try {
+    const date = new Date(dateStr);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const day = date.getDate();
+    return `${months[date.getMonth()]} ${day}`;
+  } catch {
+    return undefined;
+  }
 }
 
 // Transform prematches to Match format
@@ -171,7 +187,7 @@ const transformedMatches = prematches.map((pm, idx) => {
     time: status === 'LIVE' && pm.status_elapsed ? `LIVE ${pm.status_elapsed}'` : formatTime(pm.start_date_msia),
     status: status,
     isStarred: false,
-    tags: tags.length > 0 ? tags : ['📊 Analysis'],
+    tags: tags.length > 0 ? tags : [], // Tags are for War Room only, not displayed on home page
     tagColor: confidence >= 85 ? 'neon-green' : confidence >= 70 ? 'neon-purple' : 'neon-blue',
     analysis: {
       signal: signal,
@@ -181,9 +197,22 @@ const transformedMatches = prematches.map((pm, idx) => {
     }
   };
   
-  // Only include score if it exists
+  // Add optional fields
   if (score) {
     match.score = score;
+  }
+  
+  const formattedDate = formatDate(pm.start_date_msia);
+  if (formattedDate) {
+    match.date = formattedDate;
+  }
+  
+  if (pm.home_logo) {
+    match.homeLogo = pm.home_logo;
+  }
+  
+  if (pm.away_logo) {
+    match.awayLogo = pm.away_logo;
   }
   
   return match;

@@ -15,8 +15,11 @@ export interface Match {
   time: string;
   status: 'LIVE' | 'PRE_MATCH';
   score?: string;
+  date?: string; // 比赛日期 (e.g., "December 20")
+  homeLogo?: string; // 主队 logo URL
+  awayLogo?: string; // 客队 logo URL
   isStarred: boolean;
-  tags: string[];
+  tags: string[]; // 这些 tags 只在 War Room 显示，主页不显示
   tagColor?: string;
   analysis: Analysis;
 }

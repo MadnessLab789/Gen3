@@ -1,4 +1,4 @@
-// Auto-generated from CSV data - 2025-12-20T06:08:03.596Z
+// Auto-generated from CSV data - 2025-12-20T06:36:24.728Z
 import type { Match } from './mockMatches';
 
 export const MOCK_MATCHES: Match[] = [
@@ -19,7 +19,11 @@ export const MOCK_MATCHES: Match[] = [
       odds: 1.5,
       confidence: 60,
       guruComment: 'Eh brader, tadi dah tekan (press) Chelsea (Away +0) 2.5 unit. Sekarang odds dan line sama saja, jangan itchy hand (手痒) lagi lah! Duduk diam-diam, tunggu gol! Ini盘口退让，主队水位又这样烂，很明显庄家要你冲Newcastle，我们不吃这一套'
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/34.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/49.png'
   },
   {
     id: 354,
@@ -29,16 +33,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/39.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/55.png'
   },
   {
     id: 355,
@@ -48,16 +54,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/50.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/48.png'
   },
   {
     id: 356,
@@ -67,16 +75,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/51.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/746.png'
   },
   {
     id: 357,
@@ -86,16 +96,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/47.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/40.png'
   },
   {
     id: 358,
@@ -105,16 +117,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/45.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/42.png'
   },
   {
     id: 359,
@@ -124,16 +138,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/63.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/52.png'
   },
   {
     id: 360,
@@ -143,16 +159,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/66.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/33.png'
   },
   {
     id: 361,
@@ -162,16 +180,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 23',
+    homeLogo: 'https://media.api-sports.io/football/teams/36.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/65.png'
   },
   {
     id: 362,
@@ -181,9 +201,7 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
@@ -191,7 +209,10 @@ export const MOCK_MATCHES: Match[] = [
       confidence: 50,
       guruComment: ''
     },
-    score: '1-1'
+    score: '1-1',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/532.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/798.png'
   },
   {
     id: 363,
@@ -201,16 +222,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '21:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/718.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/538.png'
   },
   {
     id: 364,
@@ -220,16 +243,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-4',
+    date: 'December 15',
+    homeLogo: 'https://media.api-sports.io/football/teams/539.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/548.png'
   },
   {
     id: 365,
@@ -239,16 +264,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/727.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/542.png'
   },
   {
     id: 366,
@@ -258,16 +285,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/541.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/536.png'
   },
   {
     id: 367,
@@ -277,16 +306,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '21:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/547.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/530.png'
   },
   {
     id: 368,
@@ -296,16 +327,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/533.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/529.png'
   },
   {
     id: 369,
@@ -315,16 +348,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/797.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/728.png'
   },
   {
     id: 370,
@@ -334,16 +369,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/543.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/546.png'
   },
   {
     id: 371,
@@ -353,16 +390,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 23',
+    homeLogo: 'https://media.api-sports.io/football/teams/531.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/540.png'
   },
   {
     id: 372,
@@ -372,9 +411,7 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
@@ -382,7 +419,10 @@ export const MOCK_MATCHES: Match[] = [
       confidence: 50,
       guruComment: ''
     },
-    score: '2-0'
+    score: '2-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/165.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/163.png'
   },
   {
     id: 373,
@@ -392,16 +432,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/161.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/160.png'
   },
   {
     id: 374,
@@ -411,16 +453,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/170.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/162.png'
   },
   {
     id: 375,
@@ -430,16 +474,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/172.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/167.png'
   },
   {
     id: 376,
@@ -449,16 +495,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/175.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/169.png'
   },
   {
     id: 377,
@@ -468,16 +516,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/192.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/182.png'
   },
   {
     id: 378,
@@ -487,16 +537,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/173.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/168.png'
   },
   {
     id: 379,
@@ -506,16 +558,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/164.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/186.png'
   },
   {
     id: 380,
@@ -525,16 +579,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/180.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/157.png'
   },
   {
     id: 381,
@@ -544,16 +600,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 10',
+    homeLogo: 'https://media.api-sports.io/football/teams/169.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/165.png'
   },
   {
     id: 382,
@@ -563,16 +621,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/487.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/520.png'
   },
   {
     id: 383,
@@ -582,16 +642,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:45',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/496.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/497.png'
   },
   {
     id: 384,
@@ -601,16 +663,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '19:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/490.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/801.png'
   },
   {
     id: 385,
@@ -620,16 +684,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/488.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/503.png'
   },
   {
     id: 386,
@@ -639,16 +705,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/502.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/494.png'
   },
   {
     id: 387,
@@ -658,16 +726,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:45',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/495.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/499.png'
   },
   {
     id: 388,
@@ -677,16 +747,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '19:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 27',
+    homeLogo: 'https://media.api-sports.io/football/teams/523.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/502.png'
   },
   {
     id: 389,
@@ -696,16 +768,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 27',
+    homeLogo: 'https://media.api-sports.io/football/teams/503.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/490.png'
   },
   {
     id: 390,
@@ -715,16 +789,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 27',
+    homeLogo: 'https://media.api-sports.io/football/teams/867.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/895.png'
   },
   {
     id: 391,
@@ -734,16 +810,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '01:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 28',
+    homeLogo: 'https://media.api-sports.io/football/teams/494.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/487.png'
   },
   {
     id: 392,
@@ -753,16 +831,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:45',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 3',
+    homeLogo: 'https://media.api-sports.io/football/teams/96.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/116.png'
   },
   {
     id: 393,
@@ -772,16 +852,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 4',
+    homeLogo: 'https://media.api-sports.io/football/teams/91.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/80.png'
   },
   {
     id: 394,
@@ -791,16 +873,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '02:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 4',
+    homeLogo: 'https://media.api-sports.io/football/teams/84.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/95.png'
   },
   {
     id: 395,
@@ -810,16 +894,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '04:05',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 4',
+    homeLogo: 'https://media.api-sports.io/football/teams/79.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/94.png'
   },
   {
     id: 396,
@@ -829,16 +915,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '22:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 4',
+    homeLogo: 'https://media.api-sports.io/football/teams/81.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/83.png'
   },
   {
     id: 397,
@@ -848,16 +936,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 5',
+    homeLogo: 'https://media.api-sports.io/football/teams/97.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/112.png'
   },
   {
     id: 398,
@@ -867,16 +957,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 5',
+    homeLogo: 'https://media.api-sports.io/football/teams/106.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/108.png'
   },
   {
     id: 399,
@@ -886,16 +978,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '00:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 5',
+    homeLogo: 'https://media.api-sports.io/football/teams/111.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/77.png'
   },
   {
     id: 400,
@@ -905,16 +999,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '03:45',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 5',
+    homeLogo: 'https://media.api-sports.io/football/teams/85.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/114.png'
   },
   {
     id: 401,
@@ -924,16 +1020,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '02:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 17',
+    homeLogo: 'https://media.api-sports.io/football/teams/91.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/97.png'
   },
   {
     id: 402,
@@ -943,16 +1041,18 @@ export const MOCK_MATCHES: Match[] = [
     time: '23:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'January 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/664.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/569.png'
   }
 ];
 
@@ -974,7 +1074,11 @@ export const INITIAL_MATCHES: Match[] = [
       odds: 1.5,
       confidence: 60,
       guruComment: 'Eh brader, tadi dah tekan (press) Chelsea (Away +0) 2.5 unit. Sekarang odds dan line sama saja, jangan itchy hand (手痒) lagi lah! Duduk diam-diam, tunggu gol! Ini盘口退让，主队水位又这样烂，很明显庄家要你冲Newcastle，我们不吃这一套'
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/34.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/49.png'
   },
   {
     id: 354,
@@ -984,16 +1088,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/39.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/55.png'
   },
   {
     id: 355,
@@ -1003,16 +1109,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/50.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/48.png'
   },
   {
     id: 356,
@@ -1022,16 +1130,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '23:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/51.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/746.png'
   },
   {
     id: 357,
@@ -1041,16 +1151,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/47.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/40.png'
   },
   {
     id: 358,
@@ -1060,16 +1172,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/45.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/42.png'
   },
   {
     id: 359,
@@ -1079,16 +1193,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/63.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/52.png'
   },
   {
     id: 360,
@@ -1098,16 +1214,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '00:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/66.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/33.png'
   },
   {
     id: 361,
@@ -1117,16 +1235,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 23',
+    homeLogo: 'https://media.api-sports.io/football/teams/36.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/65.png'
   },
   {
     id: 362,
@@ -1136,9 +1256,7 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
@@ -1146,7 +1264,10 @@ export const INITIAL_MATCHES: Match[] = [
       confidence: 50,
       guruComment: ''
     },
-    score: '1-1'
+    score: '1-1',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/532.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/798.png'
   },
   {
     id: 363,
@@ -1156,16 +1277,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '21:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/718.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/538.png'
   },
   {
     id: 364,
@@ -1175,16 +1298,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '23:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-4',
+    date: 'December 15',
+    homeLogo: 'https://media.api-sports.io/football/teams/539.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/548.png'
   },
   {
     id: 365,
@@ -1194,16 +1319,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/727.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/542.png'
   },
   {
     id: 366,
@@ -1213,16 +1340,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/541.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/536.png'
   },
   {
     id: 367,
@@ -1232,16 +1361,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '21:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/547.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/530.png'
   },
   {
     id: 368,
@@ -1251,16 +1382,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '23:15',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 21',
+    homeLogo: 'https://media.api-sports.io/football/teams/533.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/529.png'
   },
   {
     id: 369,
@@ -1270,16 +1403,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '01:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/797.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/728.png'
   },
   {
     id: 370,
@@ -1289,16 +1424,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 22',
+    homeLogo: 'https://media.api-sports.io/football/teams/543.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/546.png'
   },
   {
     id: 371,
@@ -1308,16 +1445,18 @@ export const INITIAL_MATCHES: Match[] = [
     time: '04:00',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
       odds: 1,
       confidence: 50,
       guruComment: ''
-    }
+    },
+    score: '0-0',
+    date: 'December 23',
+    homeLogo: 'https://media.api-sports.io/football/teams/531.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/540.png'
   },
   {
     id: 372,
@@ -1327,9 +1466,7 @@ export const INITIAL_MATCHES: Match[] = [
     time: '03:30',
     status: 'PRE_MATCH',
     isStarred: false,
-    tags: [
-      '📊 Analysis'
-    ],
+    tags: [],
     tagColor: 'neon-blue',
     analysis: {
       signal: 'N/A',
@@ -1337,6 +1474,9 @@ export const INITIAL_MATCHES: Match[] = [
       confidence: 50,
       guruComment: ''
     },
-    score: '2-0'
+    score: '2-0',
+    date: 'December 20',
+    homeLogo: 'https://media.api-sports.io/football/teams/165.png',
+    awayLogo: 'https://media.api-sports.io/football/teams/163.png'
   }
 ];
