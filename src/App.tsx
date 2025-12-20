@@ -6,7 +6,6 @@ import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
-import { MOCK_MATCHES } from './data/generatedMatches';
 
 declare global {
   interface Window {
