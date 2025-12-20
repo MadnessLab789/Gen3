@@ -108,13 +108,15 @@ const detectCTA = (content: string): 'war-room' | 'vip' | null => {
   return null;
 };
 
-// 检测是否是官方通告消息
+// 检测是否是官方通告消息（Global Chat 中的带货消息）
 const isOfficialAnnouncement = (message: ChatMessage): boolean => {
-  // match_id 为 null 且 persona_name 包含 'OddsFlow' 或 'Admin'
+  // 条件1: match_id 必须为 null（全局消息）
+  // 条件2: persona_role 为 'Official' 或 persona_name 包含 'OddsFlow'/'Admin'
   return (
     message.match_id === null &&
     Boolean(message.persona_name) &&
-    (message.persona_name.toLowerCase().includes('oddsflow') ||
+    (message.persona_role === 'Official' ||
+      message.persona_name.toLowerCase().includes('oddsflow') ||
       message.persona_name.toLowerCase().includes('admin'))
   );
 };
@@ -223,12 +225,12 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
         .order('created_at', { ascending: true })
         .limit(HISTORY_LIMIT);
 
-      // 根据 matchId 过滤
-      if (matchId !== null && typeof matchId === 'number') {
-        // 如果有 matchId，只加载该 match_id 的消息
+      // 根据 matchId 过滤（数据类型安全）
+      if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
+        // War Room 模式：只加载该 match_id 的消息（match_id 必须是数字）
         query = query.eq('match_id', matchId);
       } else {
-        // 如果没有 matchId，加载 match_id 为 null 的全局消息
+        // Global Chat 模式：加载 match_id 为 null 的全局消息
         query = query.is('match_id', null);
       }
 
@@ -255,9 +257,10 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
     // 先加载历史消息
     void loadHistory();
 
-    // 根据是否有 matchId 创建不同的频道
-    if (matchId !== null && typeof matchId === 'number') {
+    // 根据是否有 matchId 创建不同的频道（数据类型安全）
+    if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
       // War Room 模式：监听特定 match_id 的新消息
+      // 确保 match_id 是数字类型，避免 NULL 值导致类型错误
       const channel = sb
         .channel(`realtime-match-${matchId}`)
         .on(
@@ -266,7 +269,7 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
             event: 'INSERT',
             schema: 'public',
             table: 'chat_history',
-            filter: `match_id=eq.${matchId}`, // 仅接收当前 War Room 比赛的消息
+            filter: `match_id=eq.${matchId}`, // 仅接收当前 War Room 比赛的消息（match_id 必须是数字）
           },
           (payload) => {
             // 当 n8n 写入新数据时，立即将其推入前端状态
