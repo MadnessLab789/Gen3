@@ -5,7 +5,15 @@ import { supabase } from '../supabaseClient';
 import type { ChatMessage } from '../types/index';
 
 interface ChatRoomProps {
-  matchId?: number; // 可选。如果有值，过滤 match_id；如果没值，加载全局消息
+  /**
+   * 比赛 ID（可选）
+   * - 如果有值：War Room 模式，查询 chat_history 表中 match_id = matchId 的消息
+   * - 如果未提供：Global Chat 模式，查询 chat_history 表中 match_id IS NULL 的消息
+   * 
+   * ⚠️ 重要：此处的 matchId 必须对应数据库 chat_history 表的 match_id 字段
+   * 虽然外部数据源（如 n8n）可能使用 fixture_id，但数据库字段名是 match_id
+   */
+  matchId?: number;
   currentUser: { id: number; username: string };
   onBack: () => void;
   onNavigateToWarRoom?: (matchId: number) => void; // 可选：导航到 War Room 的回调
@@ -226,8 +234,10 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
         .limit(HISTORY_LIMIT);
 
       // 根据 matchId 过滤（数据类型安全）
+      // ⚠️ 关键：查询必须使用 chat_history 表的 match_id 字段（不是 fixture_id）
       if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
         // War Room 模式：只加载该 match_id 的消息（match_id 必须是数字）
+        // 注意：matchId prop 的值必须对应数据库 match_id 列的值
         query = query.eq('match_id', matchId);
       } else {
         // Global Chat 模式：加载 match_id 为 null 的全局消息
@@ -282,7 +292,7 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
             event: 'INSERT',
             schema: 'public',
             table: 'chat_history',
-            filter: `match_id=eq.${matchId}`, // 仅接收当前 War Room 比赛的消息（match_id 必须是数字）
+            filter: `match_id=eq.${matchId}`, // ⚠️ 关键：实时订阅使用 match_id 字段（不是 fixture_id），仅接收当前 War Room 比赛的消息
           },
           (payload) => {
             // 当 n8n 写入新数据时，立即将其推入前端状态
@@ -326,7 +336,7 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
             event: 'INSERT',
             schema: 'public',
             table: 'chat_history',
-            filter: 'match_id=is.null', // 仅接收全局消息
+            filter: 'match_id=is.null', // ⚠️ 关键：实时订阅使用 match_id 字段，仅接收全局消息（match_id 为 NULL）
           },
           (payload) => {
             const newMessage = payload.new as ChatMessage;
@@ -384,10 +394,11 @@ export default function ChatRoom({ matchId, currentUser, onBack, onNavigateToWar
         like_count: 0,
       };
 
-      // War Room 模式：设置 match_id（必须是数字）
+      // ⚠️ 关键：插入消息时必须使用 match_id 字段名（不是 fixture_id）
+      // War Room 模式：设置 match_id（必须是数字，对应数据库 match_id 列）
       // Global Chat 模式：match_id 必须为 null
       if (matchId !== null && typeof matchId === 'number' && !isNaN(matchId)) {
-        messageData.match_id = matchId;
+        messageData.match_id = matchId; // matchId prop 的值直接映射到数据库 match_id 字段
       } else {
         // Global Chat：明确设置为 null
         messageData.match_id = null;
