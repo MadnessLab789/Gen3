@@ -766,10 +766,19 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     ? liveSignals  // LIVE: Use signals from Supabase (HDP, O/U, 1X2) - real-time from David's Supabase
     : PRE_MATCH_SIGNALS; // PRE_MATCH: Only show SNIPER ACTION (1X2) - no analysis until match starts
 
-  // Filter and order signals: Sniper first, then Analysis
-  const filteredSignals = availableSignals.filter(
-    (s) => filterCategory === 'all' || s.category === filterCategory
-  );
+  // Filter signals by category and type
+  // When a specific category is selected (HDP, O/U, 1X2), only show SNIPER type signals for that category
+  // When 'all' is selected, show all signals (both sniper and analysis)
+  const filteredSignals = availableSignals.filter((s) => {
+    if (filterCategory === 'all') {
+      // Show all signals when 'all' is selected
+      return true;
+    }
+    // For specific categories (HDP, O/U, 1X2), only show SNIPER type signals
+    return s.category === filterCategory && s.type === 'sniper';
+  });
+  
+  // Order signals: Sniper first, then Analysis (only relevant when 'all' is selected)
   const orderedSignals = [
     ...filteredSignals.filter((s) => s.type === 'sniper'),
     ...filteredSignals.filter((s) => s.type === 'analysis'),
