@@ -633,55 +633,47 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
         const signals: SignalItem[] = [];
 
-        // Transform handicap signals
+        // Transform handicap signals - Create SNIPER type for HDP
         if (handicapRes.data) {
           handicapRes.data.forEach((h: any) => {
-            if (h.signal && !h.signal.includes('观望')) {
+            if (h.signal && !h.signal.includes('观望') && !h.signal.includes('持仓')) {
+              // Create SNIPER ACTION for HDP signals
               signals.push({
                 id: signals.length + 1,
-                type: 'analysis',
+                type: 'sniper',
                 category: 'hdp',
                 league: h.league_name || match.league,
                 time: h.clock ? `LIVE ${h.clock}'` : 'LIVE',
                 status: 'LIVE',
                 timestamp: h.clock ? `${h.clock}'` : '0\'',
                 title: `${h.home_name} vs ${h.away_name}`,
-                strategy: h.signal,
-                suggestion: h.selection || `Line ${h.line}`,
-                reasoning: h.market_analysis_trend_direction || h.stacking_plan_description || '',
-                stats: [
-                  `趋势: ${h.market_analysis_trend_direction || 'N/A'}`,
-                  `变盘: ${h.market_analysis_odds_check || 'N/A'}`,
-                  `抽水: ${h.market_analysis_vig_status || 'N/A'}`
-                ],
-                guruComment: h.commentary_malaysia || h.stacking_plan_description || ''
+                market: h.selection || `Line ${h.line}`,
+                odds: parseFloat(h.home_odds || h.away_odds || '1.88') || 1.88,
+                unit: '+1',
+                statusText: 'Active 🎯'
               });
             }
           });
         }
 
-        // Transform over/under signals
+        // Transform over/under signals - Create SNIPER type for O/U
         if (overUnderRes.data) {
           overUnderRes.data.forEach((ou: any) => {
-            if (ou.signal && !ou.signal.includes('观望')) {
+            if (ou.signal && !ou.signal.includes('观望') && !ou.signal.includes('持仓')) {
+              // Create SNIPER ACTION for O/U signals
               signals.push({
                 id: signals.length + 1,
-                type: 'analysis',
+                type: 'sniper',
                 category: 'ou',
                 league: ou.league_name || match.league,
                 time: ou.clock ? `LIVE ${ou.clock}'` : 'LIVE',
                 status: 'LIVE',
                 timestamp: ou.clock ? `${ou.clock}'` : '0\'',
                 title: `${ou.home_name} vs ${ou.away_name}`,
-                strategy: ou.signal,
-                suggestion: `Over ${ou.line}`,
-                reasoning: ou.market_analysis_trend_direction || ou.stacking_plan_description || '',
-                stats: [
-                  `趋势: ${ou.market_analysis_trend_direction || 'N/A'}`,
-                  `变盘: ${ou.market_analysis_odds_check || 'N/A'}`,
-                  `抽水: ${ou.market_analysis_vig_status || 'N/A'}`
-                ],
-                guruComment: ou.commentary_malaysia || ou.stacking_plan_description || ''
+                market: `Over ${ou.line}`,
+                odds: parseFloat(ou.over || '1.88') || 1.88,
+                unit: '+1',
+                statusText: 'Active 🎯'
               });
             }
           });
