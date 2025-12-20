@@ -69,8 +69,8 @@ import { MOCK_SIGNALS as GENERATED_SIGNALS } from '../data/generatedSignals';
 
 // PRE_MATCH signals: Only SNIPER ACTION (1X2) for matches that haven't started
 // These are used when match.status === 'PRE_MATCH'
-const PRE_MATCH_SIGNALS: SignalItem[] = GENERATED_SIGNALS
-  .filter((s): s is SignalItem => s.type === 'sniper' && s.category === '1x2')
+const PRE_MATCH_SIGNALS: SignalItem[] = (GENERATED_SIGNALS as SignalItem[])
+  .filter(s => s.type === 'sniper' && s.category === '1x2')
   .map(s => ({
     ...s,
     status: 'PRE_MATCH', // Override status for PRE_MATCH display
