@@ -5,7 +5,7 @@ import { supabase } from '../supabaseClient';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
-import ChatRoom from './ChatRoom';
+import LiveChat from './LiveChat';
 
 interface Analysis {
   signal: string;
@@ -1209,11 +1209,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 <span className="text-sm">🔒 VIP Insider Access</span>
               </div>
               
-              {/* Strict Gating: 只有当 signal 存在且不为空字符串时才渲染 ChatRoom */}
+              {/* Strict Gating: only render LiveChat when a signal exists */}
               {match.analysis.signal && match.analysis.signal.trim().length > 0 ? (
                 chatUserId && chatUsername ? (
-              <ChatRoom
-                    matchId={match.id}
+                  <LiveChat
+                    fixtureId={match.id}
                     currentUser={{ id: chatUserId, username: chatUsername }}
                 onBack={() => setActiveTab('signals')}
               />

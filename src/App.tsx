@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
-import ChatRoom from './components/ChatRoom';
+import GlobalChat from './components/GlobalChat';
 import { supabase } from './supabaseClient';
 
 declare global {
@@ -591,18 +591,9 @@ function App() {
     }
     
     return (
-      <ChatRoom
+      <GlobalChat
         currentUser={{ id: user.id, username: user.username || user.first_name }}
         onBack={() => setCurrentView('home')}
-        onNavigateToWarRoom={(matchId) => {
-          // 找到对应的 match 并导航到 War Room
-          const targetMatch = matches.find((m) => m.id === matchId);
-          if (targetMatch) {
-            setActiveMatch(targetMatch);
-            setCurrentView('warroom');
-          }
-        }}
-        // matchId 未提供，将加载全局消息（match_id 为 null）
       />
     );
   }
