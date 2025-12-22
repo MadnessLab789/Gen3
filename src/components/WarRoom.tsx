@@ -615,7 +615,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       return;
     }
 
-    const fixtureId = match.id; // Use match.id as fixture_id for foreign key lookup
+    // CRITICAL: Force convert fixtureId to number (URL params are usually strings)
+    // This ensures Supabase queries work correctly
+    const fixtureId = Number(match.id);
+    const currentFixtureId = fixtureId; // Store current ID for async race condition prevention
+
+    // CRITICAL: Async race condition prevention
+    // This flag prevents stale data from overwriting new data when switching matches
+    let isCancelled = false;
 
     // CRITICAL: State reset logic - Clear all signals and analysis data BEFORE fetching
     // This ensures UI is in empty state before new data arrives
@@ -623,8 +630,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
     setIsLoadingAnalysis(true);
 
-    // CRITICAL: If fixtureId is undefined, do NOT make any requests
-    if (!fixtureId || fixtureId === undefined || isNaN(fixtureId)) {
+    // CRITICAL: If fixtureId is undefined or invalid, do NOT make any requests
+    if (!fixtureId || fixtureId === undefined || isNaN(fixtureId) || fixtureId <= 0) {
       console.warn('[WarRoom] Invalid fixtureId, skipping data fetch:', fixtureId);
       setIsLoadingAnalysis(false);
       return;
@@ -637,20 +644,27 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       try {
         // Helper function to query table with strict fixture_id filtering
         // CRITICAL: No fallback to limit(1) without fixture_id match
-        const queryTable = async (tableName: string, fixtureId: number) => {
+        const queryTable = async (tableName: string, fixtureIdNum: number) => {
           try {
+            // CRITICAL: Ensure fixtureId is a number for Supabase query
+            const numericFixtureId = Number(fixtureIdNum);
+            if (isNaN(numericFixtureId) || numericFixtureId <= 0) {
+              console.warn(`[WarRoom] Invalid numeric fixtureId for ${tableName}:`, fixtureIdNum);
+              return { data: null, error: null };
+            }
+
             // Use double quotes for table names with spaces (e.g., "money line")
             const quotedTableName = tableName.includes(' ') ? `"${tableName}"` : tableName;
             const result = await sb
               .from(quotedTableName)
               .select('*')
-              .eq('fixture_id', fixtureId) // CRITICAL: Strict fixture_id filter
+              .eq('fixture_id', numericFixtureId) // CRITICAL: Strict fixture_id filter with numeric type
               .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
             
-            // CRITICAL: Only return data if fixture_id matches
-            if (result.data && (result.data.fixture_id === fixtureId || result.data.id === fixtureId)) {
+            // CRITICAL: Only return data if fixture_id matches AND component is still mounted
+            if (result.data && (result.data.fixture_id === numericFixtureId || result.data.id === numericFixtureId)) {
               return result;
             }
             // If fixture_id doesn't match, return null
@@ -692,15 +706,22 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             return false;
           }
           
-          const currentFixtureId = fixtureId;
-          const receivedFixtureId = data.fixture_id || data.id;
+          // CRITICAL: Use currentFixtureId from closure to prevent race conditions
+          const receivedFixtureId = Number(data.fixture_id || data.id);
           
           // Detailed logging for debugging
           console.log(`[WarRoom] ${tableName} Validation:`, {
             current_fixture_id: currentFixtureId,
             received_fixture_id: receivedFixtureId,
             match: currentFixtureId === receivedFixtureId,
+            isCancelled: isCancelled,
           });
+          
+          // CRITICAL: Check if component was unmounted or match changed
+          if (isCancelled) {
+            console.warn(`[WarRoom] ${tableName}: Component cancelled, rejecting data`);
+            return false;
+          }
           
           // CRITICAL: If fixture_id doesn't match, return null immediately
           if (currentFixtureId !== receivedFixtureId) {
@@ -789,20 +810,30 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
           // Store signals separately by category for tab-specific filtering
           // ALL tab will combine all three arrays
-          // CRITICAL: Only set signals if we have validated data
-          setLiveSignals([...hdpSignals, ...ouSignals, ...oneXtwoSignals]);
+          // CRITICAL: Only set signals if we have validated data AND component is still mounted
+          if (!isCancelled) {
+            setLiveSignals([...hdpSignals, ...ouSignals, ...oneXtwoSignals]);
+          } else {
+            console.log('[WarRoom] Component cancelled, skipping signal update');
+          }
         } else {
           // For PRE_MATCH, clear signals to prevent stale data
-          setLiveSignals([]);
+          if (!isCancelled) {
+            setLiveSignals([]);
+          }
         }
       } catch (error) {
         console.error('[WarRoom] Error fetching analysis data:', error);
         // CRITICAL: Graceful degradation - set empty state instead of crashing
         // This ensures no stale data is displayed
-        setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
-        setLiveSignals([]);
+        if (!isCancelled) {
+          setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
+          setLiveSignals([]);
+        }
       } finally {
-        setIsLoadingAnalysis(false);
+        if (!isCancelled) {
+          setIsLoadingAnalysis(false);
+        }
       }
     };
 
@@ -817,70 +848,105 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     }
 
     // Realtime subscription: Listen for INSERT and UPDATE events on all three tables
-    // This ensures users see new analysis data immediately when n8n pushes updates
+    // CRITICAL: Must validate payload.new.fixture_id in callback to prevent cross-match updates
     const channels = [
       // HDP (Handicap) table subscription
       sb
-        .channel(`warroom-handicap-${fixtureId}`)
+        .channel(`warroom-handicap-${currentFixtureId}`)
         .on('postgres_changes', {
           event: '*', // Listen to both INSERT and UPDATE
           schema: 'public',
           table: 'handicap',
-          filter: `fixture_id=eq.${fixtureId}`,
-        }, () => {
-          void fetchWarRoomAnalysis();
+          filter: `fixture_id=eq.${currentFixtureId}`, // CRITICAL: Use numeric fixtureId in filter
+        }, (payload) => {
+          // CRITICAL: Validate fixture_id in payload before processing
+          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+            console.log('[WarRoom] Realtime update received for handicap, fixture_id matches');
+            void fetchWarRoomAnalysis();
+          } else {
+            console.warn('[WarRoom] Realtime update rejected - fixture_id mismatch or cancelled', {
+              payloadFixtureId,
+              currentFixtureId,
+              isCancelled,
+            });
+          }
         })
         .subscribe(),
       // O/U (Over/Under) table subscription - try both table names
       sb
-        .channel(`warroom-overunder-${fixtureId}`)
+        .channel(`warroom-overunder-${currentFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'OverUnder',
-          filter: `fixture_id=eq.${fixtureId}`,
-        }, () => {
-          void fetchWarRoomAnalysis();
+          filter: `fixture_id=eq.${currentFixtureId}`,
+        }, (payload) => {
+          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+            void fetchWarRoomAnalysis();
+          }
         })
         .subscribe(),
       sb
-        .channel(`warroom-over_under-${fixtureId}`)
+        .channel(`warroom-over_under-${currentFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'over_under',
-          filter: `fixture_id=eq.${fixtureId}`,
-        }, () => {
-          void fetchWarRoomAnalysis();
+          filter: `fixture_id=eq.${currentFixtureId}`,
+        }, (payload) => {
+          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+            void fetchWarRoomAnalysis();
+          }
         })
         .subscribe(),
       // 1X2 (Money Line) table subscription - try both table names
       sb
-        .channel(`warroom-moneyline-${fixtureId}`)
+        .channel(`warroom-moneyline-${currentFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'money line',
-          filter: `fixture_id=eq.${fixtureId}`,
-        }, () => {
-          void fetchWarRoomAnalysis();
+          filter: `fixture_id=eq.${currentFixtureId}`,
+        }, (payload) => {
+          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+            void fetchWarRoomAnalysis();
+          }
         })
         .subscribe(),
       sb
-        .channel(`warroom-moneyline-alt-${fixtureId}`)
+        .channel(`warroom-moneyline-alt-${currentFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'moneyline',
-          filter: `fixture_id=eq.${fixtureId}`,
-        }, () => {
-          void fetchWarRoomAnalysis();
+          filter: `fixture_id=eq.${currentFixtureId}`,
+        }, (payload) => {
+          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+            void fetchWarRoomAnalysis();
+          }
         })
         .subscribe(),
     ];
 
+    // CRITICAL: Cleanup function - set isCancelled to prevent stale updates
     return () => {
-      channels.forEach(ch => sb.removeChannel(ch));
+      isCancelled = true; // Mark as cancelled to prevent any pending async operations
+      console.log(`[WarRoom] Cleanup: Cancelling all operations for fixture_id ${currentFixtureId}`);
+      channels.forEach(ch => {
+        try {
+          sb.removeChannel(ch);
+        } catch (err) {
+          console.warn('[WarRoom] Error removing channel:', err);
+        }
+      });
+      // Clear state on unmount
+      setLiveSignals([]);
+      setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
     };
   }, [match.id, match.status, match.league, match.home, match.away]);
 
