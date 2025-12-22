@@ -125,6 +125,38 @@ const transformPrematchToMatch = (pm: any): Match => {
   };
 };
 
+// --- Fetch matches from Supabase prematches table ---
+const fetchMatchesFromSupabase = async (): Promise<Match[]> => {
+  const sb = supabase;
+  if (!sb) {
+    console.warn('[App] Supabase client not available');
+    return [];
+  }
+
+  try {
+    const { data, error } = await sb
+      .from('prematches')
+      .select('*')
+      .order('start_date_msia', { ascending: true });
+
+    if (error) {
+      console.error('[App] Failed to fetch matches:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('[App] No matches found in prematches table');
+      return [];
+    }
+
+    // Transform prematches rows to Match interface
+    return data.map(transformPrematchToMatch);
+  } catch (err) {
+    console.error('[App] Error fetching matches:', err);
+    return [];
+  }
+};
+
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
@@ -135,6 +167,62 @@ function App() {
   const [bannerMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [vipProcessingMatchId, setVipProcessingMatchId] = useState<number | null>(null);
+
+  // Refresh data function
+  const refreshData = async () => {
+    const freshMatches = await fetchMatchesFromSupabase();
+    setMatches(freshMatches);
+  };
+
+  // --- Fetch matches from Supabase prematches table on mount ---
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb) {
+      console.warn('[App] Supabase client not available, skipping matches fetch');
+      return;
+    }
+
+    // A. Initial fetch: Load all matches from prematches table
+    const loadMatches = async () => {
+      const fetchedMatches = await fetchMatchesFromSupabase();
+      setMatches(fetchedMatches);
+    };
+
+    void loadMatches();
+
+    // B. Realtime subscription: Listen for UPDATE events on prematches table
+    // This enables live score updates without page refresh
+    const channel = sb
+      .channel('prematches-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'prematches',
+        },
+        (payload) => {
+          // When a match is updated (score, status, etc.), update the corresponding match in state
+          const updatedPrematch = payload.new;
+          const updatedMatch = transformPrematchToMatch(updatedPrematch);
+          
+          setMatches((prev) =>
+            prev.map((m) => {
+              // Match by fixture_id (which is stored as id in Match interface)
+              if (m.id === updatedPrematch.fixture_id || m.id === updatedPrematch.id) {
+                return updatedMatch;
+              }
+              return m;
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, []);
 
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
@@ -547,7 +635,7 @@ function App() {
           <button
             onClick={async () => {
               if (currentView === 'home') {
-                await refreshData(setMatches);
+                await refreshData();
               } else {
                 setCurrentView('home');
               }
