@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createClient } from '@supabase/supabase-js';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import ChatRoom from './components/ChatRoom';
+import { supabase } from './supabaseClient';
 
 declare global {
   interface Window {
@@ -67,17 +67,7 @@ interface Match {
 }
 
 // --- Supabase Config ---
-const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? undefined;
-const SUPABASE_ANON_KEY =
-  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? undefined;
-
-const supabase =
-  typeof SUPABASE_URL === 'string' &&
-  SUPABASE_URL.length > 0 &&
-  typeof SUPABASE_ANON_KEY === 'string' &&
-  SUPABASE_ANON_KEY.length > 0
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : null;
+// Using shared supabase client from supabaseClient.ts
 
 // --- Helper Functions ---
 function parseReferrerId(startParam: unknown): number | null {
@@ -93,29 +83,51 @@ const generateWaveData = () => {
   }));
 };
 
-const refreshData = (setMatchesFn: (matches: Match[]) => void) => {
-  // Simple refresh stub: regenerate mock chart data to simulate fresh odds/metrics
-  setMatchesFn(
-    INITIAL_MATCHES.map((m) => ({
-      ...m,
-      chartData: generateWaveData(),
-    }))
-  );
+// --- Helper: Transform prematches row to Match interface ---
+const transformPrematchToMatch = (pm: any): Match => {
+  // Map status_short to Match.status
+  const statusShort = pm.status_short || 'NS';
+  const isLive = statusShort === '1H' || statusShort === 'HT' || statusShort === '2H' || statusShort === 'LIVE';
+  
+  // Format score
+  const goalsHome = pm.goals_home ?? 0;
+  const goalsAway = pm.goals_away ?? 0;
+  const score = `${goalsHome}-${goalsAway}`;
+  
+  // Format date from start_date_msia
+  const startDate = pm.start_date_msia ? new Date(pm.start_date_msia) : new Date();
+  const dateStr = startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  
+  // Format time
+  const timeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+  
+  return {
+    id: pm.fixture_id || pm.id || 0, // Use fixture_id as primary identifier
+    league: pm.league_name || 'Unknown League',
+    home: pm.home_name || 'Home',
+    away: pm.away_name || 'Away',
+    time: isLive ? `LIVE ${statusShort}` : timeStr,
+    status: isLive ? 'LIVE' : 'PRE_MATCH',
+    score: isLive || goalsHome > 0 || goalsAway > 0 ? score : undefined,
+    date: dateStr,
+    homeLogo: pm.home_logo || '',
+    awayLogo: pm.away_logo || '',
+    isStarred: false,
+    tags: [],
+    tagColor: 'neon-blue',
+    analysis: {
+      signal: pm.signal || 'N/A',
+      odds: pm.odds || 1.0,
+      confidence: pm.confidence || 50,
+      guruComment: pm.guru_comment || '',
+    },
+    chartData: generateWaveData(),
+  };
 };
-
-// --- Import full dataset from colleague's Supabase data ---
-import { MOCK_MATCHES as GENERATED_MATCHES } from './data/generatedMatches';
-
-// --- Initial Matches (from colleague's Supabase data) ---
-// Use all 50 matches from the generated dataset, adding chartData to each
-const INITIAL_MATCHES: Match[] = GENERATED_MATCHES.map((match) => ({
-  ...match,
-  chartData: generateWaveData(),
-}));
 
 function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [matches, setMatches] = useState<Match[]>(INITIAL_MATCHES);
+  const [matches, setMatches] = useState<Match[]>([]);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [currentView, setCurrentView] = useState<'home' | 'warroom' | 'chat'>('home');
   const [showWallet, setShowWallet] = useState(false);
@@ -533,9 +545,9 @@ function App() {
       <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-3 bg-surface/95 backdrop-blur-xl border-t border-white/10 z-40">
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => {
+            onClick={async () => {
               if (currentView === 'home') {
-                refreshData(setMatches);
+                await refreshData(setMatches);
               } else {
                 setCurrentView('home');
               }
