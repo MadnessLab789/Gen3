@@ -662,72 +662,93 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           tryTableQuery(['money line', 'moneyline'], fixtureId),
         ]);
 
-        // Store raw analysis data (for potential future use)
+        // CRITICAL: Strict fixture_id validation - Only accept data that matches current match
+        // This prevents displaying stale data from previous matches
+        const validateFixtureId = (data: any): boolean => {
+          if (!data) return false;
+          // Ensure fixture_id matches current match ID
+          const dataFixtureId = data.fixture_id || data.id;
+          return dataFixtureId === fixtureId;
+        };
+
+        // Store raw analysis data with strict validation
+        const validatedHdp = validateFixtureId(hdpResult.data) ? hdpResult.data : null;
+        const validatedOu = validateFixtureId(ouResult.data) ? ouResult.data : null;
+        const validatedMoneyLine = validateFixtureId(moneyLineResult.data) ? moneyLineResult.data : null;
+
         setAnalysisData({
-          hdp: hdpResult.data || null,
-          ou: ouResult.data || null,
-          oneXtwo: moneyLineResult.data || null,
+          hdp: validatedHdp,
+          ou: validatedOu,
+          oneXtwo: validatedMoneyLine,
         });
 
         // Transform to signals only for LIVE matches
+        // CRITICAL: Separate signals by category to support tab-specific filtering
         if (match.status === 'LIVE') {
-          const signals: SignalItem[] = [];
+          const hdpSignals: SignalItem[] = [];
+          const ouSignals: SignalItem[] = [];
+          const oneXtwoSignals: SignalItem[] = [];
 
-          // Transform HDP (Handicap) data
-          if (hdpResult.data && hdpResult.data.signal && !hdpResult.data.signal.includes('观望') && !hdpResult.data.signal.includes('持仓')) {
-            signals.push({
-              id: signals.length + 1,
+          // Transform HDP (Handicap) data - ONLY from handicap table
+          if (validatedHdp && validatedHdp.signal && !validatedHdp.signal.includes('观望') && !validatedHdp.signal.includes('持仓')) {
+            hdpSignals.push({
+              id: 1,
               type: 'sniper',
               category: 'hdp',
-              league: hdpResult.data.league_name || match.league,
-              time: hdpResult.data.clock ? `LIVE ${hdpResult.data.clock}'` : 'LIVE',
+              league: validatedHdp.league_name || match.league,
+              time: validatedHdp.clock ? `LIVE ${validatedHdp.clock}'` : 'LIVE',
               status: 'LIVE',
-              timestamp: hdpResult.data.clock ? `${hdpResult.data.clock}'` : '0\'',
-              title: `${hdpResult.data.home_name || match.home} vs ${hdpResult.data.away_name || match.away}`,
-              market: hdpResult.data.selection || `Line ${hdpResult.data.line || 'N/A'}`,
-              odds: parseFloat(hdpResult.data.home_odds || hdpResult.data.away_odds || '1.88') || 1.88,
+              timestamp: validatedHdp.clock ? `${validatedHdp.clock}'` : '0\'',
+              title: `${validatedHdp.home_name || match.home} vs ${validatedHdp.away_name || match.away}`,
+              market: validatedHdp.selection || `Line ${validatedHdp.line || 'N/A'}`,
+              odds: parseFloat(validatedHdp.home_odds || validatedHdp.away_odds || '1.88') || 1.88,
               unit: '+1',
               statusText: 'Active 🎯'
             });
           }
 
-          // Transform O/U (Over/Under) data
-          if (ouResult.data && ouResult.data.signal && !ouResult.data.signal.includes('观望') && !ouResult.data.signal.includes('持仓')) {
-            signals.push({
-              id: signals.length + 1,
+          // Transform O/U (Over/Under) data - ONLY from OverUnder table
+          if (validatedOu && validatedOu.signal && !validatedOu.signal.includes('观望') && !validatedOu.signal.includes('持仓')) {
+            ouSignals.push({
+              id: 1,
               type: 'sniper',
               category: 'ou',
-              league: ouResult.data.league_name || match.league,
-              time: ouResult.data.clock ? `LIVE ${ouResult.data.clock}'` : 'LIVE',
+              league: validatedOu.league_name || match.league,
+              time: validatedOu.clock ? `LIVE ${validatedOu.clock}'` : 'LIVE',
               status: 'LIVE',
-              timestamp: ouResult.data.clock ? `${ouResult.data.clock}'` : '0\'',
-              title: `${ouResult.data.home_name || match.home} vs ${ouResult.data.away_name || match.away}`,
-              market: `Over ${ouResult.data.line || 'N/A'}`,
-              odds: parseFloat(ouResult.data.over || '1.88') || 1.88,
+              timestamp: validatedOu.clock ? `${validatedOu.clock}'` : '0\'',
+              title: `${validatedOu.home_name || match.home} vs ${validatedOu.away_name || match.away}`,
+              market: `Over ${validatedOu.line || 'N/A'}`,
+              odds: parseFloat(validatedOu.over || '1.88') || 1.88,
               unit: '+1',
               statusText: 'Active 🎯'
             });
           }
 
-          // Transform 1X2 (Money Line) data
-          if (moneyLineResult.data && moneyLineResult.data.signal && !moneyLineResult.data.signal.includes('观望')) {
-            signals.push({
-              id: signals.length + 1,
+          // Transform 1X2 (Money Line) data - ONLY from money line table
+          if (validatedMoneyLine && validatedMoneyLine.signal && !validatedMoneyLine.signal.includes('观望')) {
+            oneXtwoSignals.push({
+              id: 1,
               type: 'sniper',
               category: '1x2',
-              league: moneyLineResult.data.league_name || match.league,
-              time: moneyLineResult.data.clock ? `LIVE ${moneyLineResult.data.clock}'` : 'LIVE',
+              league: validatedMoneyLine.league_name || match.league,
+              time: validatedMoneyLine.clock ? `LIVE ${validatedMoneyLine.clock}'` : 'LIVE',
               status: 'LIVE',
-              timestamp: moneyLineResult.data.clock ? `${moneyLineResult.data.clock}'` : '0\'',
-              title: `${moneyLineResult.data.home_name || match.home} vs ${moneyLineResult.data.away_name || match.away}`,
-              market: moneyLineResult.data.selection || 'Home Win',
-              odds: parseFloat(moneyLineResult.data.moneyline_1x2_home || moneyLineResult.data.moneyline_1x2_away || '2.0') || 2.0,
+              timestamp: validatedMoneyLine.clock ? `${validatedMoneyLine.clock}'` : '0\'',
+              title: `${validatedMoneyLine.home_name || match.home} vs ${validatedMoneyLine.away_name || match.away}`,
+              market: validatedMoneyLine.selection || 'Home Win',
+              odds: parseFloat(validatedMoneyLine.moneyline_1x2_home || validatedMoneyLine.moneyline_1x2_away || '2.0') || 2.0,
               unit: '+1',
               statusText: 'Active 🎯'
             });
           }
 
-          setLiveSignals(signals);
+          // Store signals separately by category for tab-specific filtering
+          // ALL tab will combine all three arrays
+          setLiveSignals([...hdpSignals, ...ouSignals, ...oneXtwoSignals]);
+        } else {
+          // For PRE_MATCH, clear signals to prevent stale data
+          setLiveSignals([]);
         }
       } catch (error) {
         console.error('[WarRoom] Error fetching analysis data:', error);
@@ -964,11 +985,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 ) : orderedSignals.length > 0 ? (
                   // Show signals if available
                   orderedSignals.map((signal) =>
-                    signal.type === 'sniper' ? (
-                      <SniperTicket key={signal.id} signal={signal} />
-                    ) : (
-                      <AnalysisCard key={signal.id} signal={signal} />
-                    )
+                  signal.type === 'sniper' ? (
+                    <SniperTicket key={signal.id} signal={signal} />
+                  ) : (
+                    <AnalysisCard key={signal.id} signal={signal} />
+                  )
                   )
                 ) : (
                   // Empty state: No analysis data available
@@ -991,7 +1012,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 )}
               </div>
 
-              {/* Smart Money Chart (bottom) */}
+              {/* Smart Money Chart (bottom) - Temporarily hidden */}
+              {/* TODO: Re-enable when n8n starts pushing continuous odds data */}
+              {false && (
               <div className="bg-black/40 rounded-lg p-4 border border-white/5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2 text-neon-green">
@@ -1015,6 +1038,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   </span>
                 </div>
               </div>
+              )}
             </motion.div>
           )}
 
