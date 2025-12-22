@@ -622,6 +622,30 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       
       try {
         // Concurrent fetch from three analysis tables using fixture_id as foreign key
+        // Helper function to try multiple table names
+        const tryTableQuery = async (tableNames: string[], fixtureId: number) => {
+          for (const tableName of tableNames) {
+            try {
+              const result = await sb
+                .from(tableName)
+                .select('*')
+                .eq('fixture_id', fixtureId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              // If we got data or no error, return it
+              if (result.data || !result.error) {
+                return result;
+              }
+            } catch (err) {
+              // Try next table name
+              continue;
+            }
+          }
+          // If all failed, return empty result
+          return { data: null, error: null };
+        };
+
         const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
           // HDP (Handicap) table
           sb
@@ -629,44 +653,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             .select('*')
             .eq('fixture_id', fixtureId)
             .order('created_at', { ascending: false })
-            .limit(1) // Get latest analysis
+            .limit(1)
             .maybeSingle(),
-          // O/U (Over/Under) table - Note: table name may be 'OverUnder' or 'over_under'
-          sb
-            .from('OverUnder')
-            .select('*')
-            .eq('fixture_id', fixtureId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-            .catch(() => {
-              // Fallback: try alternative table name 'over_under'
-              return sb
-                .from('over_under')
-                .select('*')
-                .eq('fixture_id', fixtureId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            }),
-          // 1X2 (Money Line) table - Note: table name may be 'money line' or 'moneyline'
-          sb
-            .from('money line')
-            .select('*')
-            .eq('fixture_id', fixtureId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-            .catch(() => {
-              // Fallback: try alternative table name 'moneyline'
-              return sb
-                .from('moneyline')
-                .select('*')
-                .eq('fixture_id', fixtureId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-            }),
+          // O/U (Over/Under) table - Try 'OverUnder' first, fallback to 'over_under'
+          tryTableQuery(['OverUnder', 'over_under'], fixtureId),
+          // 1X2 (Money Line) table - Try 'money line' first, fallback to 'moneyline'
+          tryTableQuery(['money line', 'moneyline'], fixtureId),
         ]);
 
         // Store raw analysis data (for potential future use)
@@ -816,128 +808,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     };
   }, [match.id, match.status, match.league, match.home, match.away]);
 
-        const signals: SignalItem[] = [];
-
-        // Transform handicap signals - Create SNIPER type for HDP
-        if (handicapRes.data) {
-          handicapRes.data.forEach((h: any) => {
-            if (h.signal && !h.signal.includes('观望') && !h.signal.includes('持仓')) {
-              // Create SNIPER ACTION for HDP signals
-              signals.push({
-                id: signals.length + 1,
-                type: 'sniper',
-                category: 'hdp',
-                league: h.league_name || match.league,
-                time: h.clock ? `LIVE ${h.clock}'` : 'LIVE',
-                status: 'LIVE',
-                timestamp: h.clock ? `${h.clock}'` : '0\'',
-                title: `${h.home_name} vs ${h.away_name}`,
-                market: h.selection || `Line ${h.line}`,
-                odds: parseFloat(h.home_odds || h.away_odds || '1.88') || 1.88,
-                unit: '+1',
-                statusText: 'Active 🎯'
-              });
-            }
-          });
-        }
-
-        // Transform over/under signals - Create SNIPER type for O/U
-        if (overUnderRes.data) {
-          overUnderRes.data.forEach((ou: any) => {
-            if (ou.signal && !ou.signal.includes('观望') && !ou.signal.includes('持仓')) {
-              // Create SNIPER ACTION for O/U signals
-              signals.push({
-                id: signals.length + 1,
-                type: 'sniper',
-                category: 'ou',
-                league: ou.league_name || match.league,
-                time: ou.clock ? `LIVE ${ou.clock}'` : 'LIVE',
-                status: 'LIVE',
-                timestamp: ou.clock ? `${ou.clock}'` : '0\'',
-                title: `${ou.home_name} vs ${ou.away_name}`,
-                market: `Over ${ou.line}`,
-                odds: parseFloat(ou.over || '1.88') || 1.88,
-                unit: '+1',
-                statusText: 'Active 🎯'
-              });
-            }
-          });
-        }
-
-        // Transform moneyline signals
-        if (moneylineRes.data) {
-          moneylineRes.data.forEach((m: any) => {
-            if (m.signal && !m.signal.includes('观望')) {
-              signals.push({
-                id: signals.length + 1,
-                type: 'sniper',
-                category: '1x2',
-                league: m.league_name || match.league,
-                time: m.clock ? `LIVE ${m.clock}'` : 'LIVE',
-                status: 'LIVE',
-                timestamp: m.clock ? `${m.clock}'` : '0\'',
-                title: `${m.home_name} vs ${m.away_name}`,
-                market: m.selection || 'Home Win',
-                odds: parseFloat(m.moneyline_1x2_home || m.moneyline_1x2_away || 2.0),
-                unit: '+1',
-                statusText: 'Active 🎯'
-              });
-            }
-          });
-        }
-
-        setLiveSignals(signals);
-      } catch (error) {
-        console.error('Error fetching live signals:', error);
-      }
-    };
-
-    void fetchLiveSignals();
-
-    // Set up realtime subscription for LIVE signals
-    if (!sb) return;
-    
-    const channels = [
-      sb
-        .channel(`handicap-${match.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'handicap',
-          filter: `fixture_id=eq.${match.id}`,
-        }, () => {
-          void fetchLiveSignals();
-        })
-        .subscribe(),
-      sb
-        .channel(`over_under-${match.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'over_under',
-          filter: `fixture_id=eq.${match.id}`,
-        }, () => {
-          void fetchLiveSignals();
-        })
-        .subscribe(),
-      sb
-        .channel(`moneyline-${match.id}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'moneyline',
-          filter: `fixture_id=eq.${match.id}`,
-        }, () => {
-          void fetchLiveSignals();
-        })
-        .subscribe(),
-    ];
-
-    return () => {
-      channels.forEach(ch => sb.removeChannel(ch));
-    };
-  }, [match.status, match.id, match.league]);
-
   // Determine which signals to display based on match status
   const availableSignals = match.status === 'LIVE' 
     ? liveSignals  // LIVE: Use signals from Supabase (HDP, O/U, 1X2) - real-time from David's Supabase
@@ -1084,12 +954,39 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
               {/* Signals List (Sniper first, then Analysis) */}
               <div className="space-y-4">
-                {orderedSignals.map((signal) =>
-                  signal.type === 'sniper' ? (
-                    <SniperTicket key={signal.id} signal={signal} />
-                  ) : (
-                    <AnalysisCard key={signal.id} signal={signal} />
+                {isLoadingAnalysis ? (
+                  // Loading state
+                  <div className="text-center py-8 text-gray-400">
+                    <div className="animate-spin w-8 h-8 border-2 border-neon-gold border-t-transparent rounded-full mx-auto mb-2"></div>
+                    <p className="text-sm">Loading analysis...</p>
+                  </div>
+                ) : orderedSignals.length > 0 ? (
+                  // Show signals if available
+                  orderedSignals.map((signal) =>
+                    signal.type === 'sniper' ? (
+                      <SniperTicket key={signal.id} signal={signal} />
+                    ) : (
+                      <AnalysisCard key={signal.id} signal={signal} />
+                    )
                   )
+                ) : (
+                  // Empty state: No analysis data available
+                  <div className="text-center py-12 px-4">
+                    <div className="bg-surface/50 border border-white/10 rounded-xl p-6">
+                      <div className="text-4xl mb-3">🔍</div>
+                      <h3 className="text-lg font-bold text-white mb-2">Waiting for AI Analysis...</h3>
+                      <p className="text-sm text-gray-400">
+                        {filterCategory === 'all' 
+                          ? 'Analysis data will appear here once available.'
+                          : `${filterCategory.toUpperCase()} analysis is pending.`}
+                      </p>
+                      {match.status === 'PRE_MATCH' && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Analysis will be available once the match starts.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
