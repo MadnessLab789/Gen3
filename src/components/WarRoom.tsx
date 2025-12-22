@@ -594,42 +594,227 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
   // State for LIVE signals from Supabase
   const [liveSignals, setLiveSignals] = useState<SignalItem[]>([]);
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [analysisData, setAnalysisData] = useState<{
+    hdp: any | null;
+    ou: any | null;
+    oneXtwo: any | null;
+  }>({
+    hdp: null,
+    ou: null,
+    oneXtwo: null,
+  });
 
-  // Fetch LIVE signals from Supabase when match is LIVE
+  // Fetch analysis data from three Supabase tables (HDP, O/U, 1X2)
+  // This runs for both LIVE and PRE_MATCH matches
   useEffect(() => {
-    if (match.status !== 'LIVE' || !supabase) {
-      setLiveSignals([]);
+    const sb = supabase;
+    if (!sb) {
+      console.warn('[WarRoom] Supabase client not available');
       return;
     }
 
-    const sb = supabase; // Store in local variable for null safety
+    const fixtureId = match.id; // Use match.id as fixture_id for foreign key lookup
 
-    // Fetch signals from David's Supabase tables
-    const fetchLiveSignals = async () => {
-      if (!sb) return;
+    // Fetch analysis data from three tables concurrently
+    const fetchWarRoomAnalysis = async () => {
+      setIsLoadingAnalysis(true);
       
       try {
-        // Fetch from handicap, over_under, and moneyline tables
-        const [handicapRes, overUnderRes, moneylineRes] = await Promise.all([
+        // Concurrent fetch from three analysis tables using fixture_id as foreign key
+        const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
+          // HDP (Handicap) table
           sb
             .from('handicap')
             .select('*')
-            .eq('fixture_id', match.id)
+            .eq('fixture_id', fixtureId)
             .order('created_at', { ascending: false })
-            .limit(10),
+            .limit(1) // Get latest analysis
+            .maybeSingle(),
+          // O/U (Over/Under) table - Note: table name may be 'OverUnder' or 'over_under'
           sb
-            .from('over_under')
+            .from('OverUnder')
             .select('*')
-            .eq('fixture_id', match.id)
+            .eq('fixture_id', fixtureId)
             .order('created_at', { ascending: false })
-            .limit(10),
+            .limit(1)
+            .maybeSingle()
+            .catch(() => {
+              // Fallback: try alternative table name 'over_under'
+              return sb
+                .from('over_under')
+                .select('*')
+                .eq('fixture_id', fixtureId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            }),
+          // 1X2 (Money Line) table - Note: table name may be 'money line' or 'moneyline'
           sb
-            .from('moneyline')
+            .from('money line')
             .select('*')
-            .eq('fixture_id', match.id)
+            .eq('fixture_id', fixtureId)
             .order('created_at', { ascending: false })
-            .limit(10),
+            .limit(1)
+            .maybeSingle()
+            .catch(() => {
+              // Fallback: try alternative table name 'moneyline'
+              return sb
+                .from('moneyline')
+                .select('*')
+                .eq('fixture_id', fixtureId)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            }),
         ]);
+
+        // Store raw analysis data (for potential future use)
+        setAnalysisData({
+          hdp: hdpResult.data || null,
+          ou: ouResult.data || null,
+          oneXtwo: moneyLineResult.data || null,
+        });
+
+        // Transform to signals only for LIVE matches
+        if (match.status === 'LIVE') {
+          const signals: SignalItem[] = [];
+
+          // Transform HDP (Handicap) data
+          if (hdpResult.data && hdpResult.data.signal && !hdpResult.data.signal.includes('观望') && !hdpResult.data.signal.includes('持仓')) {
+            signals.push({
+              id: signals.length + 1,
+              type: 'sniper',
+              category: 'hdp',
+              league: hdpResult.data.league_name || match.league,
+              time: hdpResult.data.clock ? `LIVE ${hdpResult.data.clock}'` : 'LIVE',
+              status: 'LIVE',
+              timestamp: hdpResult.data.clock ? `${hdpResult.data.clock}'` : '0\'',
+              title: `${hdpResult.data.home_name || match.home} vs ${hdpResult.data.away_name || match.away}`,
+              market: hdpResult.data.selection || `Line ${hdpResult.data.line || 'N/A'}`,
+              odds: parseFloat(hdpResult.data.home_odds || hdpResult.data.away_odds || '1.88') || 1.88,
+              unit: '+1',
+              statusText: 'Active 🎯'
+            });
+          }
+
+          // Transform O/U (Over/Under) data
+          if (ouResult.data && ouResult.data.signal && !ouResult.data.signal.includes('观望') && !ouResult.data.signal.includes('持仓')) {
+            signals.push({
+              id: signals.length + 1,
+              type: 'sniper',
+              category: 'ou',
+              league: ouResult.data.league_name || match.league,
+              time: ouResult.data.clock ? `LIVE ${ouResult.data.clock}'` : 'LIVE',
+              status: 'LIVE',
+              timestamp: ouResult.data.clock ? `${ouResult.data.clock}'` : '0\'',
+              title: `${ouResult.data.home_name || match.home} vs ${ouResult.data.away_name || match.away}`,
+              market: `Over ${ouResult.data.line || 'N/A'}`,
+              odds: parseFloat(ouResult.data.over || '1.88') || 1.88,
+              unit: '+1',
+              statusText: 'Active 🎯'
+            });
+          }
+
+          // Transform 1X2 (Money Line) data
+          if (moneyLineResult.data && moneyLineResult.data.signal && !moneyLineResult.data.signal.includes('观望')) {
+            signals.push({
+              id: signals.length + 1,
+              type: 'sniper',
+              category: '1x2',
+              league: moneyLineResult.data.league_name || match.league,
+              time: moneyLineResult.data.clock ? `LIVE ${moneyLineResult.data.clock}'` : 'LIVE',
+              status: 'LIVE',
+              timestamp: moneyLineResult.data.clock ? `${moneyLineResult.data.clock}'` : '0\'',
+              title: `${moneyLineResult.data.home_name || match.home} vs ${moneyLineResult.data.away_name || match.away}`,
+              market: moneyLineResult.data.selection || 'Home Win',
+              odds: parseFloat(moneyLineResult.data.moneyline_1x2_home || moneyLineResult.data.moneyline_1x2_away || '2.0') || 2.0,
+              unit: '+1',
+              statusText: 'Active 🎯'
+            });
+          }
+
+          setLiveSignals(signals);
+        }
+      } catch (error) {
+        console.error('[WarRoom] Error fetching analysis data:', error);
+        // Graceful degradation: set empty state instead of crashing
+        setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
+        setLiveSignals([]);
+      } finally {
+        setIsLoadingAnalysis(false);
+      }
+    };
+
+    void fetchWarRoomAnalysis();
+
+    // Realtime subscription: Listen for INSERT and UPDATE events on all three tables
+    // This ensures users see new analysis data immediately when n8n pushes updates
+    const channels = [
+      // HDP (Handicap) table subscription
+      sb
+        .channel(`warroom-handicap-${fixtureId}`)
+        .on('postgres_changes', {
+          event: '*', // Listen to both INSERT and UPDATE
+          schema: 'public',
+          table: 'handicap',
+          filter: `fixture_id=eq.${fixtureId}`,
+        }, () => {
+          void fetchWarRoomAnalysis();
+        })
+        .subscribe(),
+      // O/U (Over/Under) table subscription - try both table names
+      sb
+        .channel(`warroom-overunder-${fixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'OverUnder',
+          filter: `fixture_id=eq.${fixtureId}`,
+        }, () => {
+          void fetchWarRoomAnalysis();
+        })
+        .subscribe(),
+      sb
+        .channel(`warroom-over_under-${fixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'over_under',
+          filter: `fixture_id=eq.${fixtureId}`,
+        }, () => {
+          void fetchWarRoomAnalysis();
+        })
+        .subscribe(),
+      // 1X2 (Money Line) table subscription - try both table names
+      sb
+        .channel(`warroom-moneyline-${fixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'money line',
+          filter: `fixture_id=eq.${fixtureId}`,
+        }, () => {
+          void fetchWarRoomAnalysis();
+        })
+        .subscribe(),
+      sb
+        .channel(`warroom-moneyline-alt-${fixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'moneyline',
+          filter: `fixture_id=eq.${fixtureId}`,
+        }, () => {
+          void fetchWarRoomAnalysis();
+        })
+        .subscribe(),
+    ];
+
+    return () => {
+      channels.forEach(ch => sb.removeChannel(ch));
+    };
+  }, [match.id, match.status, match.league, match.home, match.away]);
 
         const signals: SignalItem[] = [];
 
