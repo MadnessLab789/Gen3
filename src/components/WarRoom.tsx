@@ -860,7 +860,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           filter: `fixture_id=eq.${currentFixtureId}`, // CRITICAL: Use numeric fixtureId in filter
         }, (payload) => {
           // CRITICAL: Validate fixture_id in payload before processing
-          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          const payloadData = payload.new as any;
+          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
           if (payloadFixtureId === currentFixtureId && !isCancelled) {
             console.log('[WarRoom] Realtime update received for handicap, fixture_id matches');
             void fetchWarRoomAnalysis();
@@ -882,7 +883,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           table: 'OverUnder',
           filter: `fixture_id=eq.${currentFixtureId}`,
         }, (payload) => {
-          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          const payloadData = payload.new as any;
+          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
           if (payloadFixtureId === currentFixtureId && !isCancelled) {
             void fetchWarRoomAnalysis();
           }
@@ -896,7 +898,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           table: 'over_under',
           filter: `fixture_id=eq.${currentFixtureId}`,
         }, (payload) => {
-          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          const payloadData = payload.new as any;
+          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
           if (payloadFixtureId === currentFixtureId && !isCancelled) {
             void fetchWarRoomAnalysis();
           }
@@ -911,7 +914,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           table: 'money line',
           filter: `fixture_id=eq.${currentFixtureId}`,
         }, (payload) => {
-          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          const payloadData = payload.new as any;
+          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
           if (payloadFixtureId === currentFixtureId && !isCancelled) {
             void fetchWarRoomAnalysis();
           }
@@ -925,7 +929,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           table: 'moneyline',
           filter: `fixture_id=eq.${currentFixtureId}`,
         }, (payload) => {
-          const payloadFixtureId = Number(payload.new?.fixture_id || payload.new?.id);
+          const payloadData = payload.new as any;
+          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
           if (payloadFixtureId === currentFixtureId && !isCancelled) {
             void fetchWarRoomAnalysis();
           }
