@@ -617,64 +617,108 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
     const fixtureId = match.id; // Use match.id as fixture_id for foreign key lookup
 
+    // CRITICAL: State reset logic - Clear all signals and analysis data BEFORE fetching
+    // This ensures UI is in empty state before new data arrives
+    setLiveSignals([]);
+    setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
+    setIsLoadingAnalysis(true);
+
+    // CRITICAL: If fixtureId is undefined, do NOT make any requests
+    if (!fixtureId || fixtureId === undefined || isNaN(fixtureId)) {
+      console.warn('[WarRoom] Invalid fixtureId, skipping data fetch:', fixtureId);
+      setIsLoadingAnalysis(false);
+      return;
+    }
+
     // Fetch analysis data from three tables concurrently
     const fetchWarRoomAnalysis = async () => {
       setIsLoadingAnalysis(true);
       
       try {
-        // Concurrent fetch from three analysis tables using fixture_id as foreign key
-        // Helper function to try multiple table names
+        // Helper function to query table with strict fixture_id filtering
+        // CRITICAL: No fallback to limit(1) without fixture_id match
+        const queryTable = async (tableName: string, fixtureId: number) => {
+          try {
+            // Use double quotes for table names with spaces (e.g., "money line")
+            const quotedTableName = tableName.includes(' ') ? `"${tableName}"` : tableName;
+            const result = await sb
+              .from(quotedTableName)
+              .select('*')
+              .eq('fixture_id', fixtureId) // CRITICAL: Strict fixture_id filter
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            
+            // CRITICAL: Only return data if fixture_id matches
+            if (result.data && (result.data.fixture_id === fixtureId || result.data.id === fixtureId)) {
+              return result;
+            }
+            // If fixture_id doesn't match, return null
+            return { data: null, error: null };
+          } catch (err) {
+            console.error(`[WarRoom] Error querying table ${tableName}:`, err);
+            return { data: null, error: err };
+          }
+        };
+
+        // Try multiple table names for O/U and 1X2
         const tryTableQuery = async (tableNames: string[], fixtureId: number) => {
           for (const tableName of tableNames) {
-            try {
-              const result = await sb
-                .from(tableName)
-                .select('*')
-                .eq('fixture_id', fixtureId)
-                .order('created_at', { ascending: false })
-                .limit(1)
-                .maybeSingle();
-              // If we got data or no error, return it
-              if (result.data || !result.error) {
-                return result;
-              }
-            } catch (err) {
-              // Try next table name
-              continue;
+            const result = await queryTable(tableName, fixtureId);
+            // If we got valid data with matching fixture_id, return it
+            if (result.data) {
+              return result;
             }
           }
-          // If all failed, return empty result
+          // If all failed, return empty result (NO fallback to random data)
           return { data: null, error: null };
         };
 
         const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
-          // HDP (Handicap) table
-          sb
-            .from('handicap')
-            .select('*')
-            .eq('fixture_id', fixtureId)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle(),
+          // HDP (Handicap) table - Direct query with strict fixture_id filter
+          queryTable('handicap', fixtureId),
           // O/U (Over/Under) table - Try 'OverUnder' first, fallback to 'over_under'
           tryTableQuery(['OverUnder', 'over_under'], fixtureId),
-          // 1X2 (Money Line) table - Try 'money line' first, fallback to 'moneyline'
+          // 1X2 (Money Line) table - CRITICAL: Use double quotes for table name with space
+          // Try '"money line"' first, fallback to 'moneyline'
           tryTableQuery(['money line', 'moneyline'], fixtureId),
         ]);
 
-        // CRITICAL: Strict fixture_id validation - Only accept data that matches current match
+        // CRITICAL: Enhanced fixture_id validation with detailed logging
         // This prevents displaying stale data from previous matches
-        const validateFixtureId = (data: any): boolean => {
-          if (!data) return false;
-          // Ensure fixture_id matches current match ID
-          const dataFixtureId = data.fixture_id || data.id;
-          return dataFixtureId === fixtureId;
+        const validateFixtureId = (data: any, tableName: string): boolean => {
+          if (!data) {
+            console.log(`[WarRoom] ${tableName}: No data received`);
+            return false;
+          }
+          
+          const currentFixtureId = fixtureId;
+          const receivedFixtureId = data.fixture_id || data.id;
+          
+          // Detailed logging for debugging
+          console.log(`[WarRoom] ${tableName} Validation:`, {
+            current_fixture_id: currentFixtureId,
+            received_fixture_id: receivedFixtureId,
+            match: currentFixtureId === receivedFixtureId,
+          });
+          
+          // CRITICAL: If fixture_id doesn't match, return null immediately
+          if (currentFixtureId !== receivedFixtureId) {
+            console.warn(`[WarRoom] ${tableName}: fixture_id mismatch! Rejecting data.`, {
+              current: currentFixtureId,
+              received: receivedFixtureId,
+            });
+            return false;
+          }
+          
+          return true;
         };
 
         // Store raw analysis data with strict validation
-        const validatedHdp = validateFixtureId(hdpResult.data) ? hdpResult.data : null;
-        const validatedOu = validateFixtureId(ouResult.data) ? ouResult.data : null;
-        const validatedMoneyLine = validateFixtureId(moneyLineResult.data) ? moneyLineResult.data : null;
+        // CRITICAL: Each validation includes table name for logging
+        const validatedHdp = validateFixtureId(hdpResult.data, 'handicap') ? hdpResult.data : null;
+        const validatedOu = validateFixtureId(ouResult.data, 'OverUnder') ? ouResult.data : null;
+        const validatedMoneyLine = validateFixtureId(moneyLineResult.data, 'money line') ? moneyLineResult.data : null;
 
         setAnalysisData({
           hdp: validatedHdp,
@@ -745,6 +789,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
           // Store signals separately by category for tab-specific filtering
           // ALL tab will combine all three arrays
+          // CRITICAL: Only set signals if we have validated data
           setLiveSignals([...hdpSignals, ...ouSignals, ...oneXtwoSignals]);
         } else {
           // For PRE_MATCH, clear signals to prevent stale data
@@ -752,7 +797,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         }
       } catch (error) {
         console.error('[WarRoom] Error fetching analysis data:', error);
-        // Graceful degradation: set empty state instead of crashing
+        // CRITICAL: Graceful degradation - set empty state instead of crashing
+        // This ensures no stale data is displayed
         setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
         setLiveSignals([]);
       } finally {
@@ -760,7 +806,15 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       }
     };
 
-    void fetchWarRoomAnalysis();
+    // Only fetch if fixtureId is valid
+    if (fixtureId && !isNaN(fixtureId)) {
+      void fetchWarRoomAnalysis();
+    } else {
+      // If fixtureId is invalid, ensure empty state
+      setLiveSignals([]);
+      setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
+      setIsLoadingAnalysis(false);
+    }
 
     // Realtime subscription: Listen for INSERT and UPDATE events on all three tables
     // This ensures users see new analysis data immediately when n8n pushes updates
