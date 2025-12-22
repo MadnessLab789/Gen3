@@ -595,6 +595,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
   // State for LIVE signals from Supabase
   const [liveSignals, setLiveSignals] = useState<SignalItem[]>([]);
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  // Store raw analysis data for potential future use (e.g., detailed analysis view)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [analysisData, setAnalysisData] = useState<{
     hdp: any | null;
     ou: any | null;
