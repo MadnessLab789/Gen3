@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../supabaseClient';
@@ -48,6 +48,8 @@ interface SignalItem {
   id: number;
   type: SignalType;
   category: '1x2' | 'hdp' | 'ou';
+  // Nuclear render guard: only render if this matches current fixture
+  fixture_id?: number;
   league: string;
   time: string;
   status: string;
@@ -64,18 +66,9 @@ interface SignalItem {
   guruComment?: string;
 }
 
-// Import generated signals from CSV data (colleague's Supabase data)
-import { MOCK_SIGNALS as GENERATED_SIGNALS } from '../data/generatedSignals';
-
-// PRE_MATCH signals: Only SNIPER ACTION (1X2) for matches that haven't started
-// These are used when match.status === 'PRE_MATCH'
-const PRE_MATCH_SIGNALS: SignalItem[] = (GENERATED_SIGNALS as SignalItem[])
-  .filter(s => s.type === 'sniper' && s.category === '1x2')
-  .map(s => ({
-    ...s,
-    status: 'PRE_MATCH', // Override status for PRE_MATCH display
-    time: s.time.replace('LIVE ', '').trim(), // Remove LIVE prefix for PRE_MATCH
-  }));
+// Nuclear: remove ALL PRE_MATCH mock/seed signals to prevent any hardcoded team names leaking into UI.
+// If there is no analysis for a match, we prefer a blank "Waiting for AI Analysis..." state.
+const PRE_MATCH_SIGNALS: SignalItem[] = [];
 
 // BettingSheet Component
 interface BettingSheetProps {
@@ -606,6 +599,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     oneXtwo: null,
   });
 
+  // Nuclear: current active fixture id (blocks async/realtime stale updates)
+  const activeFixtureIdRef = useRef<number>(Number(match.id));
+
   // Fetch analysis data from three Supabase tables (HDP, O/U, 1X2)
   // This runs for both LIVE and PRE_MATCH matches
   useEffect(() => {
@@ -615,13 +611,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       return;
     }
 
-    // CRITICAL: Force convert fixtureId to number (URL params are usually strings)
-    // This ensures Supabase queries work correctly
-    const fixtureId = Number(match.id);
-    const currentFixtureId = fixtureId; // Store current ID for async race condition prevention
+    // Nuclear: force convert to number (URL params / payloads are often strings)
+    const currentFixtureIdFromUrl = Number(match.id);
+    const thisRequestFixtureId = currentFixtureIdFromUrl;
+    activeFixtureIdRef.current = currentFixtureIdFromUrl;
 
-    // CRITICAL: Async race condition prevention
-    // This flag prevents stale data from overwriting new data when switching matches
+    // Nuclear: async race prevention — late responses must NOT update state
     let isCancelled = false;
 
     // CRITICAL: State reset logic - Clear all signals and analysis data BEFORE fetching
@@ -631,8 +626,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     setIsLoadingAnalysis(true);
 
     // CRITICAL: If fixtureId is undefined or invalid, do NOT make any requests
-    if (!fixtureId || fixtureId === undefined || isNaN(fixtureId) || fixtureId <= 0) {
-      console.warn('[WarRoom] Invalid fixtureId, skipping data fetch:', fixtureId);
+    if (
+      !currentFixtureIdFromUrl ||
+      Number.isNaN(currentFixtureIdFromUrl) ||
+      currentFixtureIdFromUrl <= 0
+    ) {
+      console.warn('[WarRoom] Invalid fixtureId, skipping data fetch:', currentFixtureIdFromUrl);
       setIsLoadingAnalysis(false);
       return;
     }
@@ -653,10 +652,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               return { data: null, error: null };
             }
 
-            // Use double quotes for table names with spaces (e.g., "money line")
-            const quotedTableName = tableName.includes(' ') ? `"${tableName}"` : tableName;
             const result = await sb
-              .from(quotedTableName)
+              // NOTE: PostgREST expects raw table names; we also try quoted variant via tryTableQuery list.
+              .from(tableName)
               .select('*')
               .eq('fixture_id', numericFixtureId) // CRITICAL: Strict fixture_id filter with numeric type
               .order('created_at', { ascending: false })
@@ -690,13 +688,15 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
         const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
           // HDP (Handicap) table - Direct query with strict fixture_id filter
-          queryTable('handicap', fixtureId),
+          queryTable('handicap', currentFixtureIdFromUrl),
           // O/U (Over/Under) table - Try 'OverUnder' first, fallback to 'over_under'
-          tryTableQuery(['OverUnder', 'over_under'], fixtureId),
-          // 1X2 (Money Line) table - CRITICAL: Use double quotes for table name with space
-          // Try '"money line"' first, fallback to 'moneyline'
-          tryTableQuery(['money line', 'moneyline'], fixtureId),
+          tryTableQuery(['OverUnder', 'over_under'], currentFixtureIdFromUrl),
+          // 1X2 (Money Line) table — include quoted variant per requirement
+          tryTableQuery(['money line', '"money line"', 'moneyline'], currentFixtureIdFromUrl),
         ]);
+
+        // Nuclear: request identity guard (prevents old request overwriting new match)
+        if (isCancelled || activeFixtureIdRef.current !== thisRequestFixtureId) return;
 
         // CRITICAL: Enhanced fixture_id validation with detailed logging
         // This prevents displaying stale data from previous matches
@@ -706,27 +706,27 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             return false;
           }
           
-          // CRITICAL: Use currentFixtureId from closure to prevent race conditions
+          // Nuclear: use request fixture id + force numeric comparison
           const receivedFixtureId = Number(data.fixture_id || data.id);
           
           // Detailed logging for debugging
           console.log(`[WarRoom] ${tableName} Validation:`, {
-            current_fixture_id: currentFixtureId,
+            current_fixture_id: thisRequestFixtureId,
             received_fixture_id: receivedFixtureId,
-            match: currentFixtureId === receivedFixtureId,
+            match: thisRequestFixtureId === receivedFixtureId,
             isCancelled: isCancelled,
           });
           
           // CRITICAL: Check if component was unmounted or match changed
-          if (isCancelled) {
+          if (isCancelled || activeFixtureIdRef.current !== thisRequestFixtureId) {
             console.warn(`[WarRoom] ${tableName}: Component cancelled, rejecting data`);
             return false;
           }
           
           // CRITICAL: If fixture_id doesn't match, return null immediately
-          if (currentFixtureId !== receivedFixtureId) {
+          if (thisRequestFixtureId !== receivedFixtureId) {
             console.warn(`[WarRoom] ${tableName}: fixture_id mismatch! Rejecting data.`, {
-              current: currentFixtureId,
+              current: thisRequestFixtureId,
               received: receivedFixtureId,
             });
             return false;
@@ -741,11 +741,13 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         const validatedOu = validateFixtureId(ouResult.data, 'OverUnder') ? ouResult.data : null;
         const validatedMoneyLine = validateFixtureId(moneyLineResult.data, 'money line') ? moneyLineResult.data : null;
 
-        setAnalysisData({
-          hdp: validatedHdp,
-          ou: validatedOu,
-          oneXtwo: validatedMoneyLine,
-        });
+        if (!isCancelled && activeFixtureIdRef.current === thisRequestFixtureId) {
+          setAnalysisData({
+            hdp: validatedHdp,
+            ou: validatedOu,
+            oneXtwo: validatedMoneyLine,
+          });
+        }
 
         // Transform to signals only for LIVE matches
         // CRITICAL: Separate signals by category to support tab-specific filtering
@@ -760,6 +762,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               id: 1,
               type: 'sniper',
               category: 'hdp',
+              fixture_id: thisRequestFixtureId,
               league: validatedHdp.league_name || match.league,
               time: validatedHdp.clock ? `LIVE ${validatedHdp.clock}'` : 'LIVE',
               status: 'LIVE',
@@ -778,6 +781,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               id: 1,
               type: 'sniper',
               category: 'ou',
+              fixture_id: thisRequestFixtureId,
               league: validatedOu.league_name || match.league,
               time: validatedOu.clock ? `LIVE ${validatedOu.clock}'` : 'LIVE',
               status: 'LIVE',
@@ -796,6 +800,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               id: 1,
               type: 'sniper',
               category: '1x2',
+              fixture_id: thisRequestFixtureId,
               league: validatedMoneyLine.league_name || match.league,
               time: validatedMoneyLine.clock ? `LIVE ${validatedMoneyLine.clock}'` : 'LIVE',
               status: 'LIVE',
@@ -811,7 +816,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           // Store signals separately by category for tab-specific filtering
           // ALL tab will combine all three arrays
           // CRITICAL: Only set signals if we have validated data AND component is still mounted
-          if (!isCancelled) {
+          if (!isCancelled && activeFixtureIdRef.current === thisRequestFixtureId) {
             setLiveSignals([...hdpSignals, ...ouSignals, ...oneXtwoSignals]);
           } else {
             console.log('[WarRoom] Component cancelled, skipping signal update');
@@ -831,14 +836,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           setLiveSignals([]);
         }
       } finally {
-        if (!isCancelled) {
+        if (!isCancelled && activeFixtureIdRef.current === thisRequestFixtureId) {
           setIsLoadingAnalysis(false);
         }
       }
     };
 
     // Only fetch if fixtureId is valid
-    if (fixtureId && !isNaN(fixtureId)) {
+    if (currentFixtureIdFromUrl && !Number.isNaN(currentFixtureIdFromUrl)) {
       void fetchWarRoomAnalysis();
     } else {
       // If fixtureId is invalid, ensure empty state
@@ -852,23 +857,27 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     const channels = [
       // HDP (Handicap) table subscription
       sb
-        .channel(`warroom-handicap-${currentFixtureId}`)
+        .channel(`warroom-handicap-${thisRequestFixtureId}`)
         .on('postgres_changes', {
           event: '*', // Listen to both INSERT and UPDATE
           schema: 'public',
           table: 'handicap',
-          filter: `fixture_id=eq.${currentFixtureId}`, // CRITICAL: Use numeric fixtureId in filter
+          filter: `fixture_id=eq.${thisRequestFixtureId}`, // CRITICAL: Use numeric fixtureId in filter
         }, (payload) => {
           // CRITICAL: Validate fixture_id in payload before processing
           const payloadData = payload.new as any;
           const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+          if (
+            payloadFixtureId === thisRequestFixtureId &&
+            activeFixtureIdRef.current === thisRequestFixtureId &&
+            !isCancelled
+          ) {
             console.log('[WarRoom] Realtime update received for handicap, fixture_id matches');
             void fetchWarRoomAnalysis();
           } else {
             console.warn('[WarRoom] Realtime update rejected - fixture_id mismatch or cancelled', {
               payloadFixtureId,
-              currentFixtureId,
+              currentFixtureId: thisRequestFixtureId,
               isCancelled,
             });
           }
@@ -876,62 +885,78 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         .subscribe(),
       // O/U (Over/Under) table subscription - try both table names
       sb
-        .channel(`warroom-overunder-${currentFixtureId}`)
+        .channel(`warroom-overunder-${thisRequestFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'OverUnder',
-          filter: `fixture_id=eq.${currentFixtureId}`,
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
         }, (payload) => {
           const payloadData = payload.new as any;
           const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+          if (
+            payloadFixtureId === thisRequestFixtureId &&
+            activeFixtureIdRef.current === thisRequestFixtureId &&
+            !isCancelled
+          ) {
             void fetchWarRoomAnalysis();
           }
         })
         .subscribe(),
       sb
-        .channel(`warroom-over_under-${currentFixtureId}`)
+        .channel(`warroom-over_under-${thisRequestFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'over_under',
-          filter: `fixture_id=eq.${currentFixtureId}`,
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
         }, (payload) => {
           const payloadData = payload.new as any;
           const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+          if (
+            payloadFixtureId === thisRequestFixtureId &&
+            activeFixtureIdRef.current === thisRequestFixtureId &&
+            !isCancelled
+          ) {
             void fetchWarRoomAnalysis();
           }
         })
         .subscribe(),
       // 1X2 (Money Line) table subscription - try both table names
       sb
-        .channel(`warroom-moneyline-${currentFixtureId}`)
+        .channel(`warroom-moneyline-${thisRequestFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'money line',
-          filter: `fixture_id=eq.${currentFixtureId}`,
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
         }, (payload) => {
           const payloadData = payload.new as any;
           const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+          if (
+            payloadFixtureId === thisRequestFixtureId &&
+            activeFixtureIdRef.current === thisRequestFixtureId &&
+            !isCancelled
+          ) {
             void fetchWarRoomAnalysis();
           }
         })
         .subscribe(),
       sb
-        .channel(`warroom-moneyline-alt-${currentFixtureId}`)
+        .channel(`warroom-moneyline-alt-${thisRequestFixtureId}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',
           table: 'moneyline',
-          filter: `fixture_id=eq.${currentFixtureId}`,
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
         }, (payload) => {
           const payloadData = payload.new as any;
           const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (payloadFixtureId === currentFixtureId && !isCancelled) {
+          if (
+            payloadFixtureId === thisRequestFixtureId &&
+            activeFixtureIdRef.current === thisRequestFixtureId &&
+            !isCancelled
+          ) {
             void fetchWarRoomAnalysis();
           }
         })
@@ -941,7 +966,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     // CRITICAL: Cleanup function - set isCancelled to prevent stale updates
     return () => {
       isCancelled = true; // Mark as cancelled to prevent any pending async operations
-      console.log(`[WarRoom] Cleanup: Cancelling all operations for fixture_id ${currentFixtureId}`);
+      console.log(`[WarRoom] Cleanup: Cancelling all operations for fixture_id ${thisRequestFixtureId}`);
       channels.forEach(ch => {
         try {
           sb.removeChannel(ch);
@@ -956,19 +981,21 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
   }, [match.id, match.status, match.league, match.home, match.away]);
 
   // Determine which signals to display based on match status
+  const currentFixtureIdForRender = Number(match.id);
   const availableSignals = match.status === 'LIVE' 
-    ? liveSignals  // LIVE: Use signals from Supabase (HDP, O/U, 1X2) - real-time from David's Supabase
-    : PRE_MATCH_SIGNALS; // PRE_MATCH: Only show SNIPER ACTION (1X2) - no analysis until match starts
+    ? liveSignals
+    : PRE_MATCH_SIGNALS; // always empty (nuclear)
 
   // Filter signals by category and type
   // When a specific category is selected (HDP, O/U, 1X2), only show SNIPER type signals for that category
   // When 'all' is selected, show all signals (both sniper and analysis)
-  const filteredSignals = availableSignals.filter((s) => {
-    if (filterCategory === 'all') {
-      // Show all signals when 'all' is selected
-      return true;
-    }
-    // For specific categories (HDP, O/U, 1X2), only show SNIPER type signals
+  // Nuclear: physical render guard + strict tab isolation
+  const fixtureScopedSignals = availableSignals.filter(
+    (s) => Number(s.fixture_id) === currentFixtureIdForRender
+  );
+
+  const filteredSignals = fixtureScopedSignals.filter((s) => {
+    if (filterCategory === 'all') return true;
     return s.category === filterCategory && s.type === 'sniper';
   });
   
@@ -1109,13 +1136,16 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   </div>
                 ) : orderedSignals.length > 0 ? (
                   // Show signals if available
-                  orderedSignals.map((signal) =>
+                  orderedSignals
+                    // Nuclear: final physical guard at render time
+                    .filter((signal) => Number(signal.fixture_id) === currentFixtureIdForRender)
+                    .map((signal) =>
                   signal.type === 'sniper' ? (
-                    <SniperTicket key={signal.id} signal={signal} />
-                  ) : (
-                    <AnalysisCard key={signal.id} signal={signal} />
-                  )
-                  )
+                        <SniperTicket key={`${signal.id}-${signal.fixture_id ?? 'na'}`} signal={signal} />
+                      ) : (
+                        <AnalysisCard key={`${signal.id}-${signal.fixture_id ?? 'na'}`} signal={signal} />
+                      )
+                    )
                 ) : (
                   // Empty state: No analysis data available
                   <div className="text-center py-12 px-4">

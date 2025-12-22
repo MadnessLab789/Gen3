@@ -11,7 +11,14 @@ export const supabase: SupabaseClient | null =
   SUPABASE_URL.length > 0 &&
   typeof SUPABASE_ANON_KEY === 'string' &&
   SUPABASE_ANON_KEY.length > 0
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: {
+          // Nuclear: avoid any browser/network caching layers for REST calls
+          fetch: (input, init) => {
+            return fetch(input, { ...(init ?? {}), cache: 'no-store' });
+          },
+        },
+      })
     : null;
 
 // ⚠️ IMPORTANT REMINDERS:
