@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase Edge Functions local env (never commit)
+supabase/functions/**/.env
+supabase/functions/**/.env.*
