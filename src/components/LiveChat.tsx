@@ -10,8 +10,19 @@ type UiMessage = {
   username: string;
   user_id: number | null;
   avatar_url?: string | null;
-  is_bot: boolean;
 };
+
+const DEFAULT_PIXEL_AVATAR =
+  // Tiny pixel-ish avatar (SVG data URI) to avoid external requests
+  `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" shape-rendering="crispEdges">
+      <rect width="32" height="32" fill="#0b1220"/>
+      <rect x="6" y="6" width="20" height="20" rx="6" fill="#1f2a44"/>
+      <rect x="10" y="12" width="4" height="4" fill="#b7c5ff"/>
+      <rect x="18" y="12" width="4" height="4" fill="#b7c5ff"/>
+      <rect x="12" y="20" width="8" height="3" fill="#b7c5ff"/>
+    </svg>`
+  )}`;
 
 function normalizeLiveRow(row: any, fixtureId: number): UiMessage | null {
   const rowFixtureId = Number(row?.fixture_id);
@@ -20,7 +31,8 @@ function normalizeLiveRow(row: any, fixtureId: number): UiMessage | null {
   const content = String(row?.content ?? row?.message ?? '').trim();
   if (!content) return null;
 
-  const username = String(row?.username ?? row?.sender_name ?? row?.persona_name ?? 'Unknown');
+  // New schema: sender_name is the display name
+  const username = String(row?.sender_name ?? row?.username ?? 'Unknown');
   const created_at = String(row?.created_at ?? row?.inserted_at ?? new Date().toISOString());
   const user_id =
     row?.user_id === null || row?.user_id === undefined
@@ -29,11 +41,8 @@ function normalizeLiveRow(row: any, fixtureId: number): UiMessage | null {
         ? Number(row.user_id)
         : null;
 
-  const is_bot =
-    Boolean(row?.is_bot) ||
-    String(row?.sender_type ?? '').toLowerCase() === 'bot' ||
-    String(row?.role ?? '').toLowerCase() === 'bot' ||
-    username.toLowerCase().includes('bot');
+  // New schema: avatar_url comes from payload JSONB
+  const avatar_url = (row?.payload?.avatar_url ?? row?.avatar_url ?? null) as string | null;
 
   return {
     id: String(row?.id ?? `${created_at}-${Math.random().toString(16).slice(2)}`),
@@ -42,8 +51,7 @@ function normalizeLiveRow(row: any, fixtureId: number): UiMessage | null {
     created_at,
     username,
     user_id,
-    avatar_url: row?.avatar_url ?? null,
-    is_bot,
+    avatar_url,
   };
 }
 
@@ -77,7 +85,7 @@ export default function LiveChat(props: {
 
     const load = async () => {
       const { data, error } = await sb
-        .from('live_messages')
+        .from('war_room_messages')
         .select('*')
         .eq('fixture_id', thisRequestFixtureId)
         .order('created_at', { ascending: true })
@@ -106,7 +114,7 @@ export default function LiveChat(props: {
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'live_messages',
+          table: 'war_room_messages',
           filter: `fixture_id=eq.${thisRequestFixtureId}`,
         },
         (payload) => {
@@ -142,12 +150,16 @@ export default function LiveChat(props: {
       const payload = {
         fixture_id: fixtureIdNum,
         content,
-        username: currentUser.username,
+        sender_type: 'user',
+        sender_name: currentUser.username,
         user_id: currentUser.id,
-        is_bot: false,
       };
 
-      const { data, error } = await sb.from('live_messages').insert(payload as any).select('*').single();
+      const { data, error } = await sb
+        .from('war_room_messages')
+        .insert(payload as any)
+        .select('*')
+        .single();
       if (error) {
         console.error('[LiveChat] send failed:', error);
         return;
@@ -182,29 +194,33 @@ export default function LiveChat(props: {
 
       <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
         {rendered.map((m) => {
-          const isUser = m.user_id !== null && m.user_id === currentUser.id && !m.is_bot;
-          const bubble =
-            m.is_bot
-              ? 'bg-purple-500/15 border-purple-400/30 text-white'
-              : isUser
-                ? 'bg-blue-500/20 border-blue-400/40 text-white'
-                : 'bg-surface/60 border-white/10 text-white';
+          const isUser = m.user_id !== null && m.user_id === currentUser.id;
+          // CRITICAL: "All human" UI — no BOT tag, no purple bubble
+          const bubble = isUser
+            ? 'bg-blue-500/20 border-blue-400/40 text-white'
+            : 'bg-surface/60 border-white/10 text-white';
+
+          const avatarSrc = (m.avatar_url ?? '').trim() || DEFAULT_PIXEL_AVATAR;
 
           return (
             <div key={m.id} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl border px-4 py-3 ${bubble}`}>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-gray-200">{m.username}</span>
-                  {m.is_bot && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/30 border border-purple-400/30 text-purple-100 font-bold">
-                      BOT
+              <div className={`flex items-end gap-2 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                <img
+                  src={avatarSrc}
+                  alt={m.username}
+                  className="w-8 h-8 rounded-full border border-white/10 bg-black/30 object-cover"
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                />
+                <div className={`max-w-[78%] rounded-2xl border px-4 py-3 ${bubble}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-gray-200">{m.username}</span>
+                    <span className="text-[10px] text-gray-400 ml-auto">
+                      {new Date(m.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                  )}
-                  <span className="text-[10px] text-gray-400 ml-auto">
-                    {new Date(m.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+                  </div>
+                  <div className="text-sm whitespace-pre-wrap">{m.content}</div>
                 </div>
-                <div className="text-sm whitespace-pre-wrap">{m.content}</div>
               </div>
             </div>
           );
