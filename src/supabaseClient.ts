@@ -27,7 +27,7 @@ export const supabase: SupabaseClient | null =
 //
 // 2. Realtime Setup:
 //    - Go to Supabase Dashboard > Database > Replication
-//    - Enable "Realtime" for `global_messages` and `live_messages`
+//    - Enable "Realtime" for `global_messages` and `war_room_messages`
 //    - Without this, frontend listeners won't receive INSERT events
 //
 // 3. Performance: Initial message loading is limited to 50 messages (HISTORY_LIMIT)

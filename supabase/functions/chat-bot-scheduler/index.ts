@@ -1,14 +1,22 @@
-// Supabase Edge Function: chat-bot-scheduler
-// Randomly posts a "persona" message into public.chat_messages.
-//
-// - Supports two rooms via request body: { room_id: 'global' | 'war-room' }
-// - Uses negative telegram_id for personas so they look like "humans" in UI.
-//
-// Deploy:
-//   supabase functions deploy chat-bot-scheduler
-//
-// Optional auth:
-//   Set CRON_SECRET and call with header: x-cron-secret: <CRON_SECRET>
+/**
+ * Supabase Edge Function: chat-bot-scheduler (War Room "战况播报员")
+ *
+ * Writes AI match updates into `public.war_room_messages`.
+ * It dynamically selects a LIVE fixture_id from `public.prematches` (type === 'inplay').
+ *
+ * Required columns on war_room_messages:
+ * - fixture_id (bigint/int)
+ * - sender_type (text)   => 'ai'
+ * - sender_name (text)
+ * - content (text)
+ * - payload (jsonb)      => includes avatar_url
+ *
+ * Deploy:
+ *   supabase functions deploy chat-bot-scheduler
+ *
+ * Optional auth:
+ *   Set CRON_SECRET and call with header: x-cron-secret: <CRON_SECRET>
+ */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -17,55 +25,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
 };
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+// Prefer Edge Function env vars; fallback to Vite env var name for local dev convenience.
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? Deno.env.get('VITE_SUPABASE_URL') ?? '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
-
-// 1) Personas + messages (Global)
-const GLOBAL_BOTS = [
-  { name: 'SoccerKing', id: -101 },
-  { name: 'CityFan99', id: -102 },
-  { name: 'BetHunter', id: -103 },
-  { name: 'Alex_K', id: -104 },
-  { name: 'OddsWatcher', id: -105 },
-  { name: 'LineMover', id: -106 },
-  { name: 'WhaleRadar', id: -107 },
-  { name: 'ValueHunt', id: -108 },
-  { name: 'SharpTalk', id: -109 },
-  { name: 'EPL_Insider', id: -110 },
-];
-
-const GLOBAL_MESSAGES = [
-  'Odds are dropping fast!',
-  'Ref is absolutely blind today.',
-  "I'm going all in on Home.",
-  'Anyone following the copy trade?',
-  'What a save!',
-  'That line move is crazy…',
-  'Late goal incoming, I can feel it.',
-  'Volume spike just hit the book.',
-  'HDP looks safer than 1X2 here.',
-  'Keep an eye on corners — tempo is rising.',
-];
-
-// 2) Personas + messages (War Room)
-const WAR_ROOM_BOTS = [
-  { name: 'OddsFlow_AI', id: -999 },
-  { name: 'SmartMoney_Bot', id: -998 },
-  { name: 'Risk_Manager', id: -997 },
-  { name: 'LiquidityScanner', id: -996 },
-  { name: 'LineWatch', id: -995 },
-];
-
-const WAR_ROOM_MESSAGES = [
-  '🚨 Volatility alert detected on the current match.',
-  '📉 Home Win odds dropped sharply in the last 10 mins.',
-  'Target acquired: Heavy volume on Over 2.5.',
-  'Market sentiment shifting toward Away.',
-  'Liquidity spike detected — watch the next tick.',
-  'HDP pressure building…',
-  'OU line is being defended by the book.',
-];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -78,32 +41,80 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function insertMessage(params: {
-  supabase: ReturnType<typeof createClient>;
-  telegram_id: number;
-  username: string;
-  content: string;
-  room_id: string;
-}) {
-  const { supabase, ...payload } = params;
+function pixelAvatar(seed: string): string {
+  // Deterministic-ish pixel icon using seed; kept tiny to avoid payload bloat
+  const color = ['#7C4DFF', '#00E5FF', '#22C55E', '#F59E0B', '#EF4444'][
+    Math.abs(seed.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % 5
+  ];
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" shape-rendering="crispEdges">` +
+    `<rect width="32" height="32" fill="#0b1220"/>` +
+    `<rect x="6" y="6" width="20" height="20" rx="6" fill="#1f2a44"/>` +
+    `<rect x="10" y="12" width="4" height="4" fill="${color}"/>` +
+    `<rect x="18" y="12" width="4" height="4" fill="${color}"/>` +
+    `<rect x="12" y="20" width="8" height="3" fill="${color}"/>` +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
 
-  // Try insert including type='text' (if column exists), otherwise fallback.
-  const tryWithType = await supabase
-    .from('chat_messages')
-    .insert({ ...payload, type: 'text' } as any);
+type Persona = {
+  sender_name: string;
+  avatar_url: string;
+  style: 'observer' | 'tactics' | 'market';
+};
 
-  if (!tryWithType.error) return { error: null as any };
+// “战况观察员”系列（像素头像 + 专业话术）
+const PERSONAS: Persona[] = [
+  { sender_name: '战况观察员-Alpha', avatar_url: pixelAvatar('alpha'), style: 'observer' },
+  { sender_name: '战况观察员-Bravo', avatar_url: pixelAvatar('bravo'), style: 'tactics' },
+  { sender_name: '战况观察员-Charlie', avatar_url: pixelAvatar('charlie'), style: 'market' },
+  { sender_name: '战况观察员-Delta', avatar_url: pixelAvatar('delta'), style: 'observer' },
+  { sender_name: '战况观察员-Echo', avatar_url: pixelAvatar('echo'), style: 'market' },
+];
 
-  const msg = String((tryWithType.error as any)?.message ?? '').toLowerCase();
-  const typeColumnMissing = msg.includes('column') && msg.includes('type');
-  if (!typeColumnMissing) return { error: tryWithType.error };
+function buildCommentary(persona: Persona, match: any): string {
+  const home = String(match?.home_name ?? 'Home');
+  const away = String(match?.away_name ?? 'Away');
+  const gh = Number(match?.goals_home ?? 0);
+  const ga = Number(match?.goals_away ?? 0);
+  const status = String(match?.status_short ?? match?.status ?? 'LIVE');
+  const elapsed = match?.status_elapsed ?? match?.elapsed ?? null;
+  const clock = elapsed !== null && elapsed !== undefined ? `${elapsed}'` : '';
 
-  const tryWithoutType = await supabase.from('chat_messages').insert(payload as any);
-  return { error: tryWithoutType.error };
+  const score = `${gh}-${ga}`;
+
+  if (persona.style === 'market') {
+    return `【战况播报】${home} ${score} ${away} (${status} ${clock})｜盘口/水位波动加剧，建议关注下一次变盘的方向与回撤力度。`;
+  }
+
+  if (persona.style === 'tactics') {
+    return `【战况播报】${home} ${score} ${away} (${status} ${clock})｜节奏变化明显，若持续压迫则下一次关键机会可能在 3-5 分钟内出现。`;
+  }
+
+  return `【战况播报】${home} ${score} ${away} (${status} ${clock})｜当前形势稳定，等待下一次关键事件（进球/红牌/重大变盘）触发信号更新。`;
+}
+
+async function pickInplayFixtureId(supabase: ReturnType<typeof createClient>) {
+  // Requirement: type === 'inplay'
+  const base = supabase
+    .from('prematches')
+    .select('fixture_id, home_name, away_name, goals_home, goals_away, status_short, status_elapsed, type')
+    .limit(50);
+
+  // 1) strict match
+  const strict = await base.eq('type', 'inplay');
+  if (strict.error) throw strict.error;
+  if (Array.isArray(strict.data) && strict.data.length > 0) return pickRandom(strict.data);
+
+  // 2) fallback: common variants (some datasets use "In Play")
+  const fallback = await base.ilike('type', '%in%play%');
+  if (fallback.error) throw fallback.error;
+  if (Array.isArray(fallback.data) && fallback.data.length > 0) return pickRandom(fallback.data);
+
+  return null;
 }
 
 Deno.serve(async (req) => {
-  // Handle CORS
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
@@ -117,9 +128,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 2) Parse request payload (choose room + probability)
     const body = (await req.json().catch(() => ({}))) as any;
-    const room_id = body?.room_id === 'war-room' ? 'war-room' : 'global';
     const send_probability_raw = Number(body?.send_probability ?? 1.0);
     const send_probability =
       Number.isFinite(send_probability_raw) && send_probability_raw >= 0 && send_probability_raw <= 1
@@ -128,28 +137,44 @@ Deno.serve(async (req) => {
 
     // Random skip mechanism (natural timing)
     if (Math.random() > send_probability) {
-      return json({ success: true, skipped: true, room: room_id });
+      return json({ success: true, skipped: true });
     }
 
-    // 3) Choose script by room
-    const selectedPersona = room_id === 'war-room' ? pickRandom(WAR_ROOM_BOTS) : pickRandom(GLOBAL_BOTS);
-    const selectedMessage = room_id === 'war-room' ? pickRandom(WAR_ROOM_MESSAGES) : pickRandom(GLOBAL_MESSAGES);
-
-    // 4) Init Supabase client (Service Role to bypass RLS writes)
-    const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-    // 5) Insert into DB
-    const { error } = await insertMessage({
-      supabase,
-      telegram_id: selectedPersona.id,
-      username: selectedPersona.name,
-      content: selectedMessage,
-      room_id,
+    // Service Role client to bypass RLS writes
+    const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
     });
 
+    // Pick an inplay fixture
+    const inplay = await pickInplayFixtureId(sb);
+    if (!inplay) {
+      return json({ success: true, skipped: true, reason: 'No inplay fixtures found in prematches' });
+    }
+
+    const fixture_id = Number(inplay.fixture_id);
+    if (!Number.isFinite(fixture_id) || fixture_id <= 0) {
+      return json({ success: false, error: `Invalid fixture_id from prematches: ${String(inplay.fixture_id)}` }, 500);
+    }
+
+    const persona = pickRandom(PERSONAS);
+    const content = buildCommentary(persona, inplay);
+
+    const insertPayload = {
+      fixture_id,
+      sender_type: 'ai',
+      sender_name: persona.sender_name,
+      content,
+      payload: {
+        avatar_url: persona.avatar_url,
+        persona: 'war-room-reporter',
+        source: 'chat-bot-scheduler',
+      },
+    };
+
+    const { error } = await sb.from('war_room_messages').insert(insertPayload as any);
     if (error) throw error;
 
-    return json({ success: true, room: room_id, bot: selectedPersona.name });
+    return json({ success: true, fixture_id, sender_name: persona.sender_name });
   } catch (error: any) {
     return json({ success: false, error: error?.message ?? String(error) }, 500);
   }
