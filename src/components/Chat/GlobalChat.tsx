@@ -33,6 +33,15 @@ function normalize(row: any): GlobalChatRow | null {
   return { id, created_at, sender_name, content, role };
 }
 
+function mergeAndSort(prev: GlobalChatRow[], next: GlobalChatRow[]): GlobalChatRow[] {
+  const byId = new Map<string, GlobalChatRow>();
+  for (const m of prev) byId.set(m.id, m);
+  for (const m of next) byId.set(m.id, m);
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+}
+
 export default function GlobalChat(props: {
   currentUser: { id: number; username: string };
   onBack: () => void;
@@ -52,7 +61,7 @@ export default function GlobalChat(props: {
   useLayoutEffect(() => {
     if (!initialLoadedRef.current) return;
     // Force scroll so users don't think "no data" when messages are below fold
-    bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
   useEffect(() => {
@@ -77,9 +86,9 @@ export default function GlobalChat(props: {
       const normalized = (data ?? []).map(normalize).filter(Boolean) as GlobalChatRow[];
       // We fetched DESC, so reverse to ASC for display
       normalized.reverse();
-      setMessages(normalized);
       initialLoadedRef.current = true;
-      queueMicrotask(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }));
+      // Merge instead of overwrite: realtime inserts can arrive while fetch is in flight
+      setMessages((prev) => mergeAndSort(prev, normalized));
     };
 
     void fetchMessages();
@@ -93,12 +102,8 @@ export default function GlobalChat(props: {
           if (isCancelled) return;
           const msg = normalize(payload.new as any);
           if (!msg) return;
-          // Append to the end (do NOT replace whole array)
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === msg.id)) return prev;
-            return [...prev, msg];
-          });
-          queueMicrotask(scrollToBottom);
+          // Merge + keep chronological order; never replace whole array
+          setMessages((prev) => mergeAndSort(prev, [msg]));
         }
       )
       .subscribe();
