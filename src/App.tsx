@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
-import GlobalChat from './components/GlobalChat';
+import GlobalChat from './components/Chat/GlobalChat';
 import { supabase } from './supabaseClient';
 
 declare global {
