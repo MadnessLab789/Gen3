@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Send } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
@@ -43,34 +43,46 @@ export default function GlobalChat(props: {
   const [messages, setMessages] = useState<GlobalChatRow[]>([]); // start empty (no mock)
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const initialLoadedRef = useRef(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  // Always land at the bottom after initial fetch and after inserts
+  useLayoutEffect(() => {
+    if (!initialLoadedRef.current) return;
+    // Force scroll so users don't think "no data" when messages are below fold
+    bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+  }, [messages.length]);
 
   useEffect(() => {
     if (!sb) return;
     let isCancelled = false;
 
-    const load = async () => {
+    const fetchMessages = async () => {
       const { data, error } = await sb
         .from('global_chat_messages')
         .select('id, created_at, sender_name, content, role')
-        .order('created_at', { ascending: true })
+        // Fetch newest first, then reverse in UI to show oldest -> newest
+        .order('created_at', { ascending: false })
         .limit(50);
 
       if (isCancelled) return;
       if (error) {
-        console.error('[GlobalChat] load failed:', error);
+        console.error('[GlobalChat] fetch failed (check RLS/permissions):', error);
         setMessages([]);
         return;
       }
 
       const normalized = (data ?? []).map(normalize).filter(Boolean) as GlobalChatRow[];
+      // We fetched DESC, so reverse to ASC for display
+      normalized.reverse();
       setMessages(normalized);
-      queueMicrotask(scrollToBottom);
+      initialLoadedRef.current = true;
+      queueMicrotask(() => bottomRef.current?.scrollIntoView({ behavior: 'auto' }));
     };
 
-    void load();
+    void fetchMessages();
 
     const channel = sb
       .channel('realtime-global-chat-messages')
@@ -81,6 +93,7 @@ export default function GlobalChat(props: {
           if (isCancelled) return;
           const msg = normalize(payload.new as any);
           if (!msg) return;
+          // Append to the end (do NOT replace whole array)
           setMessages((prev) => {
             if (prev.some((m) => m.id === msg.id)) return prev;
             return [...prev, msg];
