@@ -259,7 +259,7 @@ export default function GlobalChat(props: {
     <div className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl">
       <div className="h-full max-w-md mx-auto flex flex-col">
         {/* Header */}
-        <header className="flex items-center justify-between gap-4 px-4 py-4 bg-surface/60 backdrop-blur-xl border-b border-white/10">
+        <header className="flex items-center justify-between gap-4 px-4 py-4 bg-slate-900/60 backdrop-blur-md border-b border-white/10">
           {/* Left: Back + Title */}
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={onBack} className="p-2 hover:bg-surface-highlight rounded-lg transition-colors">
@@ -267,18 +267,17 @@ export default function GlobalChat(props: {
             </button>
 
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-neon-blue/10 border border-neon-blue/20 flex items-center justify-center shrink-0">
-                <Globe className="w-5 h-5 text-neon-blue" />
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 border border-blue-500/20 flex items-center justify-center shrink-0 shadow-[inset_0_0_10px_rgba(59,130,246,0.25)] shadow-black/40">
+                <Globe className="w-5 h-5 text-blue-400 drop-shadow-[0_0_8px_rgba(96,165,250,0.35)]" />
               </div>
 
               <div className="min-w-0">
-                <div
-                  className="text-xl font-bold text-white tracking-wide truncate"
-                  style={{ textShadow: '0 0 12px rgba(0, 229, 255, 0.25)' }}
-                >
+                <div className="text-xl font-black tracking-wide truncate bg-gradient-to-r from-[#60A5FA] to-[#34D399] bg-clip-text text-transparent drop-shadow-[0_0_8px_rgba(96,165,250,0.5)]">
                   GLOBAL CHAT
                 </div>
-                <div className="text-xs text-gray-400 font-mono truncate">ODDSFLOW Lounge</div>
+                <div className="text-xs font-medium text-cyan-400/60 tracking-widest truncate">
+                  ODDSFLOW Lounge
+                </div>
               </div>
             </div>
           </div>
@@ -286,12 +285,17 @@ export default function GlobalChat(props: {
           {/* Right: Online Count */}
           <div className="flex flex-col items-end shrink-0">
             <div className="flex items-center gap-2 text-sm font-mono text-gray-200 leading-none">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="min-w-[4ch] text-right" style={{ fontVariantNumeric: 'tabular-nums' }}>
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_10px_#22c55e]" />
+              <span
+                className="min-w-[4ch] text-right text-[#FDE047]"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
                 {displayCount}
               </span>
             </div>
-            <div className="text-[10px] font-mono text-gray-400 leading-none mt-1">Members Online</div>
+            <div className="text-[10px] font-mono text-slate-400 uppercase leading-none mt-1">
+              Members Online
+            </div>
           </div>
         </header>
 
