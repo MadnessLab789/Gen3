@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Globe, Send } from 'lucide-react';
 import { supabase } from '../../supabaseClient';
 
 type GlobalChatRow = {
@@ -259,23 +259,39 @@ export default function GlobalChat(props: {
     <div className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl">
       <div className="h-full max-w-md mx-auto flex flex-col">
         {/* Header */}
-        <header className="flex items-center gap-3 px-4 pt-6 pb-4 border-b border-white/10">
-          <button onClick={onBack} className="p-2 hover:bg-surface-highlight rounded-lg transition-colors">
-            <ArrowLeft className="w-5 h-5 text-white" />
-          </button>
-          <div className="flex-1">
-            <div className="text-xs text-gray-400 font-mono">GLOBAL CHAT</div>
-            <div className="text-lg font-bold text-white">ODDSFLOW Lounge</div>
-            <div className="mt-1 flex items-center gap-2 text-xs font-mono text-gray-300">
+        <header className="flex items-center justify-between gap-4 px-4 py-4 bg-surface/60 backdrop-blur-xl border-b border-white/10">
+          {/* Left: Back + Title */}
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={onBack} className="p-2 hover:bg-surface-highlight rounded-lg transition-colors">
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-neon-blue/10 border border-neon-blue/20 flex items-center justify-center shrink-0">
+                <Globe className="w-5 h-5 text-neon-blue" />
+              </div>
+
+              <div className="min-w-0">
+                <div
+                  className="text-xl font-bold text-white tracking-wide truncate"
+                  style={{ textShadow: '0 0 12px rgba(0, 229, 255, 0.25)' }}
+                >
+                  GLOBAL CHAT
+                </div>
+                <div className="text-xs text-gray-400 font-mono truncate">ODDSFLOW Lounge</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Online Count */}
+          <div className="flex flex-col items-end shrink-0">
+            <div className="flex items-center gap-2 text-sm font-mono text-gray-200 leading-none">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span
-                className="min-w-[5ch] text-right"
-                style={{ fontVariantNumeric: 'tabular-nums' }}
-              >
+              <span className="min-w-[4ch] text-right" style={{ fontVariantNumeric: 'tabular-nums' }}>
                 {displayCount}
               </span>
-              <span>Members Online</span>
             </div>
+            <div className="text-[10px] font-mono text-gray-400 leading-none mt-1">Members Online</div>
           </div>
         </header>
 
