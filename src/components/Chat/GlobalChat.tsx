@@ -140,9 +140,10 @@ export default function GlobalChat(props: {
   const rendered = useMemo(() => messages, [messages]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl overflow-y-auto">
-      <div className="min-h-screen max-w-md mx-auto px-4 pt-6 pb-24">
-        <header className="flex items-center gap-3 mb-4">
+    <div className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl">
+      <div className="h-full max-w-md mx-auto flex flex-col">
+        {/* Header */}
+        <header className="flex items-center gap-3 px-4 pt-6 pb-4 border-b border-white/10">
           <button onClick={onBack} className="p-2 hover:bg-surface-highlight rounded-lg transition-colors">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
@@ -152,7 +153,8 @@ export default function GlobalChat(props: {
           </div>
         </header>
 
-        <div className="space-y-3">
+        {/* Messages (scroll area) */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
           {rendered.map((m) => {
             const isAi = String(m.role).toLowerCase() === 'ai';
             const isSelf = !isAi && m.sender_name === currentUser.username;
@@ -191,7 +193,8 @@ export default function GlobalChat(props: {
           <div ref={bottomRef} />
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-3 bg-surface/95 backdrop-blur-xl border-t border-white/10">
+        {/* Input bar (pinned bottom) */}
+        <div className="sticky bottom-0 z-50 border-t border-white/10 bg-background/80 backdrop-blur-xl px-4 py-3 pb-[env(safe-area-inset-bottom)]">
           <div className="flex gap-2">
             <input
               value={text}
