@@ -54,6 +54,10 @@ export default function GlobalChat(props: {
   const [sending, setSending] = useState(false);
   const initialLoadedRef = useRef(false);
 
+  // Online count
+  const [realTimeCount, setRealTimeCount] = useState(0); // Presence
+  const [simulatedCount, setSimulatedCount] = useState(0); // system_configs offset
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const scrollToBottom = () => bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
 
@@ -118,6 +122,100 @@ export default function GlobalChat(props: {
     };
   }, [sb]);
 
+  // Presence: track real websocket online count
+  useEffect(() => {
+    if (!sb) return;
+    let isCancelled = false;
+
+    const channel = sb.channel('lounge-room', {
+      config: { presence: { key: String(currentUser.id) } },
+    });
+
+    const recompute = () => {
+      if (isCancelled) return;
+      const state = channel.presenceState() as Record<string, unknown[]>;
+      const count = Object.values(state).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+      setRealTimeCount(count);
+    };
+
+    channel
+      .on('presence', { event: 'sync' }, recompute)
+      .on('presence', { event: 'join' }, recompute)
+      .on('presence', { event: 'leave' }, recompute);
+
+    channel.subscribe((status) => {
+      if (status !== 'SUBSCRIBED') return;
+      // Track this client as online
+      void channel.track({ online_at: new Date().toISOString() });
+    });
+
+    return () => {
+      isCancelled = true;
+      try {
+        sb.removeChannel(channel);
+      } catch {
+        // ignore
+      }
+    };
+  }, [sb, currentUser.id]);
+
+  // system_configs: realtime simulated offset (key === 'simulated_user_offset')
+  useEffect(() => {
+    if (!sb) return;
+    let isCancelled = false;
+
+    const fetchOffset = async () => {
+      const { data, error } = await sb
+        .from('system_configs')
+        .select('value_int')
+        .eq('key', 'simulated_user_offset')
+        .maybeSingle();
+
+      if (isCancelled) return;
+      if (error) {
+        console.warn('[GlobalChat] Failed to fetch simulated_user_offset:', error);
+        setSimulatedCount(0);
+        return;
+      }
+      setSimulatedCount(Number((data as any)?.value_int ?? 0) || 0);
+    };
+
+    void fetchOffset();
+
+    const ch = sb
+      .channel('realtime-system-configs')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'system_configs',
+          filter: 'key=eq.simulated_user_offset',
+        },
+        (payload) => {
+          if (isCancelled) return;
+          const row = payload.new as any;
+          if (row?.key !== 'simulated_user_offset') return;
+          setSimulatedCount(Number(row?.value_int ?? 0) || 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isCancelled = true;
+      try {
+        sb.removeChannel(ch);
+      } catch {
+        // ignore
+      }
+    };
+  }, [sb]);
+
+  const displayCount = useMemo(() => {
+    const total = (Number(realTimeCount) || 0) + (Number(simulatedCount) || 0);
+    return Math.max(0, total);
+  }, [realTimeCount, simulatedCount]);
+
   const handleSend = async () => {
     const content = text.trim();
     if (!content || !sb || sending) return;
@@ -168,6 +266,16 @@ export default function GlobalChat(props: {
           <div className="flex-1">
             <div className="text-xs text-gray-400 font-mono">GLOBAL CHAT</div>
             <div className="text-lg font-bold text-white">ODDSFLOW Lounge</div>
+            <div className="mt-1 flex items-center gap-2 text-xs font-mono text-gray-300">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span
+                className="min-w-[5ch] text-right"
+                style={{ fontVariantNumeric: 'tabular-nums' }}
+              >
+                {displayCount}
+              </span>
+              <span>Members Online</span>
+            </div>
           </div>
         </header>
 
