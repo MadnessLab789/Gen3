@@ -1159,7 +1159,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                       </p>
                       {match.status === 'PRE_MATCH' && (
                         <p className="text-xs text-gray-500 mt-2">
-                          Analysis will be available once the match starts.
+                          Warm tip: Reports are usually generated about 3 minutes before kickoff.
                         </p>
                       )}
                     </div>
