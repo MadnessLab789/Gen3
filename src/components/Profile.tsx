@@ -109,7 +109,10 @@ export default function Profile(props: {
 
       <div className="space-y-4">
         {/* Header Card */}
-        <div className="rounded-xl bg-[#161616] border border-white/5 p-6">
+        <div className="relative overflow-hidden rounded-xl bg-[#161616] border border-white/5 p-6 shadow-[0_0_0_1px_rgba(139,92,246,0.18)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(139,92,246,0.22),transparent_55%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(255,215,0,0.10),transparent_45%)]" />
+          <div className="relative">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className={`${labelCls} font-mono`}>ACCOUNT</div>
@@ -147,7 +150,7 @@ export default function Profile(props: {
           </div>
 
           {/* Wallet Stats Row */}
-          <div className="mt-5 rounded-xl bg-[#161616] border border-white/5 p-4">
+          <div className="mt-5 rounded-xl bg-[#161616] border border-white/5 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <div className="flex justify-between items-center">
               <div>
                 <div className={`${labelCls} font-mono`}>Wallet Balance</div>
@@ -168,7 +171,7 @@ export default function Profile(props: {
           </div>
 
           {/* Stats Grid */}
-          <div className="mt-5 grid grid-cols-3 rounded-xl bg-[#161616] border border-white/5 overflow-hidden">
+          <div className="mt-5 grid grid-cols-3 rounded-xl bg-[#161616] border border-white/5 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             {[
               { label: 'VIP', value: isVip ? 'ACTIVE' : 'FREE' },
               { label: 'WATCHLIST', value: String(watchlistCount ?? 0) },
@@ -183,10 +186,13 @@ export default function Profile(props: {
               </div>
             ))}
           </div>
+          </div>
         </div>
 
         {/* Shortcuts */}
-        <div className="rounded-xl bg-[#161616] border border-white/5 p-4">
+        <div className="relative overflow-hidden rounded-xl bg-[#161616] border border-white/5 p-4 shadow-[0_0_0_1px_rgba(139,92,246,0.14)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_20%,rgba(139,92,246,0.16),transparent_55%)]" />
+          <div className="relative">
           <div className={`${labelCls} font-mono mb-3`}>SHORTCUTS</div>
           <div className="space-y-2">
             {shortcuts.map(({ key, label, Icon, onClick }) => (
@@ -196,7 +202,7 @@ export default function Profile(props: {
                 className="w-full bg-[#161616] border border-white/5 rounded-xl px-4 py-3 flex items-center justify-between hover:scale-105 transition-transform hover:brightness-110"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#0A0A0A] border border-white/10 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-[#0A0A0A] border border-[rgba(139,92,246,0.22)] flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.12)]">
                     <Icon size={16} style={{ color: gold }} />
                   </div>
                   <div className="text-sm font-semibold text-white">{label}</div>
@@ -204,6 +210,7 @@ export default function Profile(props: {
                 <ChevronRight className="w-4 h-4 text-gray-500" />
               </button>
             ))}
+          </div>
           </div>
         </div>
 
