@@ -59,6 +59,7 @@ export default function RechargeModal(props: {
     try {
       const payload = {
         telegram_id: telegramId,
+        type: 'recharge',
         amount,
         currency: 'USDT',
         network: 'BEP20',

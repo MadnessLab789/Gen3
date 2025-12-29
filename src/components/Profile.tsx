@@ -112,23 +112,19 @@ export default function Profile(props: {
         }
       }
 
-      // B) referral count from oddsflow_radar_referrals (try common column names)
-      const tryCount = async (col: string) => {
-        const res = await sb
-          .from('oddsflow_radar_referrals')
-          .select('id', { count: 'exact', head: true })
-          .eq(col, user.id as any);
-        if (res.error) return null;
-        return res.count ?? 0;
-      };
-
-      const c1 = await tryCount('referrer_telegram_id');
-      const c2 = c1 === null ? await tryCount('referrer_id') : null;
-      const c3 = c1 === null && c2 === null ? await tryCount('telegram_id') : null;
+      // B) referral count (schema): oddsflow_radar_referrals.referrer_id == current user id
+      const { count, error: countErr } = await sb
+        .from('oddsflow_radar_referrals')
+        .select('id', { count: 'exact', head: true })
+        .eq('referrer_id', user.id as any);
 
       if (!cancelled) {
-        const next = c1 ?? c2 ?? c3 ?? 0;
-        setReferralCount(Number(next) || 0);
+        if (countErr) {
+          console.warn('[Profile] referral count failed:', countErr);
+          setReferralCount(0);
+        } else {
+          setReferralCount(Number(count ?? 0) || 0);
+        }
       }
     };
 

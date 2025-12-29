@@ -4,9 +4,7 @@ import { supabase } from '../supabaseClient';
 
 type Prefs = {
   nationality: string;
-  favoriteGames: string[];
-  language: string;
-  currency: string;
+  favoriteLeagues: string[];
 };
 
 function readBool(key: string, fallback = false) {
@@ -39,9 +37,7 @@ export default function SettingsScreen(props: {
 
   const [prefs, setPrefs] = useState<Prefs>({
     nationality: '',
-    favoriteGames: [],
-    language: 'EN',
-    currency: 'USD',
+    favoriteLeagues: [],
   });
   const [saving, setSaving] = useState(false);
 
@@ -80,7 +76,7 @@ export default function SettingsScreen(props: {
     const load = async () => {
       const { data, error } = await sb
         .from('users')
-        .select('nationality, favorite_games, language, currency')
+        .select('nationality, favorite_leagues')
         .eq('telegram_id', telegramId)
         .maybeSingle();
 
@@ -93,9 +89,7 @@ export default function SettingsScreen(props: {
       const row: any = data ?? {};
       setPrefs((prev) => ({
         nationality: String(row.nationality ?? prev.nationality ?? ''),
-        favoriteGames: Array.isArray(row.favorite_games) ? row.favorite_games : prev.favoriteGames,
-        language: String(row.language ?? prev.language ?? 'EN'),
-        currency: String(row.currency ?? prev.currency ?? 'USD'),
+        favoriteLeagues: Array.isArray(row.favorite_leagues) ? row.favorite_leagues : prev.favoriteLeagues,
       }));
     };
 
@@ -107,10 +101,12 @@ export default function SettingsScreen(props: {
 
   const toggleLeague = (name: string) => {
     setPrefs((prev) => {
-      const has = prev.favoriteGames.includes(name);
+      const has = prev.favoriteLeagues.includes(name);
       return {
         ...prev,
-        favoriteGames: has ? prev.favoriteGames.filter((x) => x !== name) : [...prev.favoriteGames, name],
+        favoriteLeagues: has
+          ? prev.favoriteLeagues.filter((x) => x !== name)
+          : [...prev.favoriteLeagues, name],
       };
     });
   };
@@ -123,9 +119,7 @@ export default function SettingsScreen(props: {
     try {
       const payload: any = {
         nationality: prefs.nationality,
-        favorite_games: prefs.favoriteGames,
-        language: prefs.language,
-        currency: prefs.currency,
+        favorite_leagues: prefs.favoriteLeagues,
       };
 
       const { error } = await sb.from('users').update(payload).eq('telegram_id', telegramId);
@@ -213,7 +207,7 @@ export default function SettingsScreen(props: {
               </div>
               <div className="flex flex-wrap gap-2">
                 {leagues.map((l) => {
-                  const active = prefs.favoriteGames.includes(l);
+                  const active = prefs.favoriteLeagues.includes(l);
                   return (
                     <button
                       key={l}
@@ -231,39 +225,8 @@ export default function SettingsScreen(props: {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-2">
-                  Language
-                </div>
-                <select
-                  value={prefs.language}
-                  onChange={(e) => setPrefs((p) => ({ ...p, language: e.target.value }))}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white"
-                >
-                  {['EN', 'CN', 'MY'].map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="text-[10px] uppercase tracking-widest text-gray-500 font-mono mb-2">
-                  Currency
-                </div>
-                <select
-                  value={prefs.currency}
-                  onChange={(e) => setPrefs((p) => ({ ...p, currency: e.target.value }))}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white"
-                >
-                  {['USD', 'MYR', 'SGD'].map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div className="text-[11px] text-gray-500 font-mono">
+              Language & Currency can be added after the database fields are ready.
             </div>
           </div>
         </div>
