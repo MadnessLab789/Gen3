@@ -300,8 +300,6 @@ function App() {
       return;
     }
 
-    setVipProcessingMatchId(match.id);
-
     try {
       // Fetch latest balance and vip_end_time from DB (do not trust local state)
       const { data: freshUser, error: freshError } = await sb
@@ -323,53 +321,15 @@ function App() {
           ? new Date(latestVipEnd).getTime() > Date.now()
           : false;
 
-      if (hasVip) {
-        // Already VIP: enter directly
-        setUser((prev) =>
-          prev
-            ? {
-                ...prev,
-                coins: latestBalance,
-                vip_end_time: latestVipEnd ?? null,
-                is_vip: true,
-              }
-            : prev
-        );
-        setActiveMatch(match);
-        setCurrentView('warroom');
-        return;
-      }
-
-      // Not VIP: check balance
-      if (latestBalance < 50) {
-        tg.showAlert?.('Insufficient balance') ?? showTelegramAlert('Insufficient balance');
-        return;
-      }
-
-      const newBalance = latestBalance - 50;
-      const newVipEnd = new Date();
-      newVipEnd.setDate(newVipEnd.getDate() + 30);
-
-      // Deduct balance and set VIP
-      const { error: updateError } = await sb
-        .from('users')
-        .update({ balance: newBalance, vip_end_time: newVipEnd.toISOString() })
-        .eq('telegram_id', user.telegram_id);
-
-      if (updateError) {
-        tg.showAlert?.(`❌ ${updateError.message || 'Transaction failed'}`) ??
-          showTelegramAlert(`❌ ${updateError.message || 'Transaction failed'}`);
-        return;
-      }
-
-      // Update local state and enter warroom
+      // Product policy: everyone can enter War Room.
+      // VIP only unlocks full analysis content inside War Room (do NOT auto-charge / auto-upgrade here).
       setUser((prev) =>
         prev
           ? {
               ...prev,
-              coins: newBalance,
-              vip_end_time: newVipEnd.toISOString(),
-              is_vip: true,
+              coins: latestBalance,
+              vip_end_time: latestVipEnd ?? null,
+              is_vip: hasVip,
             }
           : prev
       );
@@ -380,7 +340,6 @@ function App() {
       tg.showAlert?.(`❌ ${e?.message || 'Transaction failed'}`) ??
         showTelegramAlert(`❌ ${e?.message || 'Transaction failed'}`);
     } finally {
-      setVipProcessingMatchId(null);
       setIsLoading(false);
     }
   };
