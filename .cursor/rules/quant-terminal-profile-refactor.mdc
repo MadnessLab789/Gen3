@@ -1,0 +1,52 @@
+# Quant Terminal UI Rules — Profile Refactor Prompt (Cursor)
+
+Use this prompt when refactoring `src/components/Profile.tsx` (and only minimal wiring in `src/App.tsx` if needed).
+
+## Role
+Senior React/TypeScript + Tailwind UI Engineer.
+
+## Goal
+Refactor the **Profile** page so it matches the Oddsflow **“Quant Terminal”** design language: high-contrast, black/gold material, data-dense, stable numeric layout.
+
+## Hard Rules (must follow)
+- **Background**: must be `#0A0A0A`.
+- **Cards**: must use `bg-[#161616] border border-white/5 rounded-xl`.
+- **Gold**: must be `#FFD700` (no other gold variants).
+- **VIP badge**: must be `border border-[#4ADE80]/30 text-[#4ADE80] bg-transparent`.
+- **Labels**: must be `text-[10px] uppercase tracking-widest text-gray-500`.
+- **Numbers / currency / IDs**: must use **monospace + tabular**: `font-mono tabular-nums`.
+- **Buttons**: must be `rounded-xl`, same height across the page, include `hover:brightness-110 transition`.
+- **Constraints**:
+  - Do **NOT** delete any existing business logic.
+  - Only refactor layout/structure/styling.
+  - Keep existing callbacks/props working.
+
+## Layout Requirements
+
+### 1) Header Card
+- One top card with account info.
+- Username should have subtle gold glow (text-shadow or drop-shadow).
+- VIP expiry must show **“Expires in X Days”** (calculate from `vip_end_time`).
+- De-emphasize non-core text; emphasize username + balance.
+
+### 2) Wallet Row (inside header card)
+- Use `flex justify-between items-center`.
+- Left: label **Wallet Balance** + value in `#FFD700` (slightly smaller than previous, `tracking-tight`, subtle gold shadow).
+- Right: CTA button **OPEN** in `#FFD700`, black text, `font-black`, same height as VIP pill.
+
+### 3) Stats Grid
+- 3 columns with dividers: `border-r border-white/10`.
+- Each cell: label (spec above) + large value (white, monospace).
+
+### 4) Shortcuts
+- Render from an array: `{ icon, label, onClick }`.
+- Each row has `hover:scale-105 transition-transform` and includes a chevron-right at the end.
+
+## Wiring
+- Keep Support accessible from Profile.
+- If `watchlistCount` exists in App state, pass it into Profile and display it.
+
+## Files to Change
+- `src/components/Profile.tsx`
+- `src/App.tsx` (only for passing props / navigation hooks if needed)
+
