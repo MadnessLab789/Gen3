@@ -10,6 +10,7 @@ import Profile from './components/Profile';
 import BottomNav, { type MainTab } from './components/BottomNav';
 import RadarScreen from './components/RadarScreen';
 import WalletScreen from './components/WalletScreen';
+import RechargeModal from './components/RechargeModal';
 import { supabase } from './supabaseClient';
 
 declare global {
@@ -174,6 +175,7 @@ function App() {
     'home' | 'radar' | 'chat' | 'wallet' | 'me' | 'warroom' | 'support'
   >('home');
   const [showWallet, setShowWallet] = useState(false);
+  const [showRecharge, setShowRecharge] = useState(false);
   const [referrerId, setReferrerId] = useState<number | null>(null);
   const [bannerMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -913,6 +915,7 @@ function App() {
           onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
           onOpenSupport={() => setCurrentView('support')}
           onOpenWallet={() => setCurrentView('wallet')}
+          onOpenRecharge={() => setShowRecharge(true)}
           watchlistCount={watchlistIds.size}
         />
       )}
@@ -960,6 +963,13 @@ function App() {
       <AnimatePresence>
         {showWallet && <WalletModal balance={user?.coins ?? 0} onClose={() => setShowWallet(false)} />}
       </AnimatePresence>
+
+      <RechargeModal
+        open={showRecharge}
+        onClose={() => setShowRecharge(false)}
+        telegramId={user?.telegram_id ?? user?.id ?? 0}
+        showToast={showTelegramAlert}
+      />
     </div>
   );
 }

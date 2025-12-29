@@ -1,4 +1,33 @@
-import { ArrowLeft, Bell, ChevronRight, Crown, History, LifeBuoy, Settings, Star } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Bell, ChevronRight, Copy, Crown, History, LifeBuoy, Settings, Star } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+
+function tryCopy(text: string): Promise<boolean> {
+  const v = text.trim();
+  if (!v) return Promise.resolve(false);
+
+  if (navigator.clipboard?.writeText) {
+    return navigator.clipboard
+      .writeText(v)
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  try {
+    const el = document.createElement('textarea');
+    el.value = v;
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(el);
+    return Promise.resolve(ok);
+  } catch {
+    return Promise.resolve(false);
+  }
+}
 
 export default function Profile(props: {
   user: {
@@ -17,6 +46,7 @@ export default function Profile(props: {
   onOpenVip?: () => void;
   onOpenSupport?: () => void;
   onOpenWallet?: () => void;
+  onOpenRecharge?: () => void;
   watchlistCount?: number;
 }) {
   const {
@@ -28,6 +58,7 @@ export default function Profile(props: {
     onOpenVip,
     onOpenSupport,
     onOpenWallet,
+    onOpenRecharge,
     watchlistCount,
   } = props;
 
@@ -37,6 +68,71 @@ export default function Profile(props: {
   const gold = '#FFD700';
   const pillBtnCls =
     'h-9 px-4 rounded-xl text-xs font-black bg-[#FFD700] text-black hover:brightness-110 transition';
+
+  // --- Simple Toast ---
+  const [toast, setToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  // --- Referral data ---
+  const [referralCode, setReferralCode] = useState<string>('');
+  const [referralCount, setReferralCount] = useState<number>(0);
+  const referralLink = useMemo(() => {
+    const code = referralCode.trim();
+    if (!code) return '';
+    return `https://t.me/OddsFlow_Radar_V3_bot?start=${encodeURIComponent(code)}`;
+  }, [referralCode]);
+
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb) return;
+    if (!user?.id) return;
+
+    let cancelled = false;
+    const load = async () => {
+      // A) referral_code from users
+      const { data: userRow, error: userErr } = await sb
+        .from('users')
+        .select('referral_code')
+        .eq('telegram_id', user.id)
+        .maybeSingle();
+
+      if (!cancelled) {
+        if (!userErr) {
+          setReferralCode(String((userRow as any)?.referral_code ?? '').trim());
+        } else {
+          console.warn('[Profile] referral_code fetch failed:', userErr);
+        }
+      }
+
+      // B) referral count from oddsflow_radar_referrals (try common column names)
+      const tryCount = async (col: string) => {
+        const res = await sb
+          .from('oddsflow_radar_referrals')
+          .select('id', { count: 'exact', head: true })
+          .eq(col, user.id as any);
+        if (res.error) return null;
+        return res.count ?? 0;
+      };
+
+      const c1 = await tryCount('referrer_telegram_id');
+      const c2 = c1 === null ? await tryCount('referrer_id') : null;
+      const c3 = c1 === null && c2 === null ? await tryCount('telegram_id') : null;
+
+      if (!cancelled) {
+        const next = c1 ?? c2 ?? c3 ?? 0;
+        setReferralCount(Number(next) || 0);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   const daysUntilVipExpiry = (() => {
     if (!isVip) return null;
@@ -108,6 +204,14 @@ export default function Profile(props: {
       </header>
 
       <div className="space-y-4">
+        {toast && (
+          <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[200] w-[92%] max-w-md">
+            <div className="rounded-xl border border-white/10 bg-[#161616] px-4 py-3 shadow-[0_0_20px_rgba(139,92,246,0.15)]">
+              <div className="text-sm font-bold text-white">{toast}</div>
+            </div>
+          </div>
+        )}
+
         {/* Header Card */}
         <div className="relative overflow-hidden rounded-xl bg-[#161616] border border-white/5 p-6 shadow-[0_0_0_1px_rgba(139,92,246,0.18)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(139,92,246,0.22),transparent_55%)]" />
@@ -162,7 +266,7 @@ export default function Profile(props: {
                 </div>
               </div>
               <button
-                onClick={() => onOpenWallet?.() ?? showAlert('Wallet actions coming soon.')}
+                onClick={() => onOpenRecharge?.() ?? onOpenWallet?.() ?? showAlert('Wallet actions coming soon.')}
                 className={pillBtnCls}
               >
                 OPEN
@@ -179,10 +283,16 @@ export default function Profile(props: {
             ].map((s, idx) => (
               <div
                 key={s.label}
-                className={`px-4 py-4 ${idx !== 2 ? 'border-r border-white/10' : ''}`}
+                className={`px-4 py-4 min-w-0 overflow-hidden ${idx !== 2 ? 'border-r border-white/10' : ''}`}
               >
                 <div className={labelCls}>{s.label}</div>
-                <div className="text-lg font-black text-white mt-1 font-mono tabular-nums">{s.value}</div>
+                {s.label === 'TG ID' ? (
+                  <div className="text-sm text-white mt-1 font-data tabular-nums break-all leading-tight">
+                    {s.value}
+                  </div>
+                ) : (
+                  <div className="text-lg font-black text-white mt-1 font-mono tabular-nums">{s.value}</div>
+                )}
               </div>
             ))}
           </div>
@@ -214,9 +324,44 @@ export default function Profile(props: {
           </div>
         </div>
 
-        <div className="rounded-xl bg-[#161616] border border-white/5 p-4">
-          <div className="text-[11px] text-gray-500 font-mono">
-            Invite link & referrals can be added here next (Profile → Invite).
+        {/* Referral / Invite */}
+        <div className="premium-card">
+          <div className="premium-card-content">
+            <div className="flex items-center justify-between">
+              <div className={labelCls}>INVITE</div>
+              <div className="text-[10px] uppercase tracking-widest text-gray-500 font-mono">
+                Invited: <span className="text-white font-bold">{referralCount}</span>
+              </div>
+            </div>
+
+            <div className="mt-2 text-sm font-semibold text-white">Your Referral Link</div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                readOnly
+                value={referralLink || 'No referral_code found on users table.'}
+                className="flex-1 min-w-0 bg-black/30 border border-white/10 rounded-xl px-3 py-3 text-[12px] text-white font-mono tabular-nums"
+              />
+              <button
+                onClick={async () => {
+                  if (!referralLink) {
+                    setToast('Missing referral code');
+                    return;
+                  }
+                  const ok = await tryCopy(referralLink);
+                  setToast(ok ? 'Copied!' : 'Copy failed');
+                }}
+                className="h-11 px-4 rounded-xl bg-white/5 border border-white/10 hover:brightness-110 transition flex items-center gap-2"
+                aria-label="Copy"
+              >
+                <Copy className="w-4 h-4" style={{ color: gold }} />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-300">COPY</span>
+              </button>
+            </div>
+
+            <div className="mt-3 text-[11px] text-gray-500 font-mono leading-relaxed">
+              Share this link with friends. When they start the bot using your code, it will count as a referral.
+            </div>
           </div>
         </div>
       </div>
