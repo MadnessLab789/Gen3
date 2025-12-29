@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Star, Zap, Activity, Trophy, Clock, Home, MessageCircle, LifeBuoy, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
@@ -176,10 +176,20 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   // Entry is open for all users now; VIP gating happens inside WarRoom content.
 
+  // --- Watchlist (persisted) ---
+  const [watchlistIds, setWatchlistIds] = useState<Set<number>>(new Set());
+  const watchlistIdsRef = useRef<Set<number>>(new Set());
+  useEffect(() => {
+    watchlistIdsRef.current = watchlistIds;
+  }, [watchlistIds]);
+
+  const applyWatchlist = (rows: Match[], ids: Set<number>) =>
+    rows.map((m) => ({ ...m, isStarred: ids.has(m.id) }));
+
   // Refresh data function
   const refreshData = async () => {
     const freshMatches = await fetchMatchesFromSupabase();
-    setMatches(freshMatches);
+    setMatches(applyWatchlist(freshMatches, watchlistIdsRef.current));
   };
 
   // --- Fetch matches from Supabase prematches table on mount ---
@@ -193,7 +203,7 @@ function App() {
     // A. Initial fetch: Load all matches from prematches table
     const loadMatches = async () => {
       const fetchedMatches = await fetchMatchesFromSupabase();
-      setMatches(fetchedMatches);
+      setMatches(applyWatchlist(fetchedMatches, watchlistIdsRef.current));
     };
 
     void loadMatches();
@@ -220,12 +230,17 @@ function App() {
             return;
           }
           const updatedMatch = transformPrematchToMatch(updatedPrematch);
+          // Preserve star state across realtime updates
+          const mergedUpdatedMatch = {
+            ...updatedMatch,
+            isStarred: watchlistIdsRef.current.has(updatedMatch.id),
+          };
           
           setMatches((prev) =>
             prev.map((m) => {
               // Match by fixture_id (which is stored as id in Match interface)
               if (m.id === updatedPrematch.fixture_id || m.id === updatedPrematch.id) {
-                return updatedMatch;
+                return mergedUpdatedMatch;
               }
               return m;
             })
@@ -238,6 +253,40 @@ function App() {
       sb.removeChannel(channel);
     };
   }, []);
+
+  // Load watchlist from Supabase for this user (persists starred matches)
+  useEffect(() => {
+    const sb = supabase;
+    if (!sb) return;
+    if (!user?.telegram_id) return;
+
+    let cancelled = false;
+    const loadWatchlist = async () => {
+      const { data, error } = await sb
+        .from('user_watchlist')
+        .select('fixture_id')
+        .eq('telegram_id', user.telegram_id);
+
+      if (cancelled) return;
+      if (error) {
+        // Graceful fallback: keep local-only stars if table isn't created yet.
+        console.warn('[Watchlist] Failed to load user_watchlist (table may be missing):', error);
+        return;
+      }
+
+      const ids = new Set<number>(
+        (data ?? []).map((r: any) => Number(r.fixture_id)).filter((n) => Number.isFinite(n))
+      );
+      setWatchlistIds(ids);
+      // Apply to any already-loaded matches
+      setMatches((prev) => applyWatchlist(prev, ids));
+    };
+
+    void loadWatchlist();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.telegram_id]);
 
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
@@ -519,8 +568,46 @@ function App() {
     console.error('Failed to update coins:', updCoins.error);
   };
 
-  const toggleStar = (id: number) => {
-    setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: !m.isStarred } : m)));
+  const toggleStar = async (id: number) => {
+    const nextStarred = !watchlistIdsRef.current.has(id);
+
+    // Optimistic UI update
+    setWatchlistIds((prev) => {
+      const next = new Set(prev);
+      if (nextStarred) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+    setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: nextStarred } : m)));
+
+    const sb = supabase;
+    if (!sb || !user?.telegram_id) return; // local-only fallback
+
+    try {
+      if (nextStarred) {
+        const { error } = await sb
+          .from('user_watchlist')
+          .insert({ telegram_id: user.telegram_id, fixture_id: id } as any);
+        if (error) throw error;
+      } else {
+        const { error } = await sb
+          .from('user_watchlist')
+          .delete()
+          .eq('telegram_id', user.telegram_id)
+          .eq('fixture_id', id);
+        if (error) throw error;
+      }
+    } catch (e) {
+      console.warn('[Watchlist] Failed to persist star toggle, rolling back:', e);
+      // Rollback
+      setWatchlistIds((prev) => {
+        const next = new Set(prev);
+        if (nextStarred) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+      setMatches((prev) => prev.map((m) => (m.id === id ? { ...m, isStarred: !nextStarred } : m)));
+    }
   };
 
   const starredMatches = matches.filter((m) => m.isStarred);
@@ -625,7 +712,14 @@ function App() {
                         )}
                       </div>
                     </div>
-                    <button onClick={() => toggleStar(match.id)} className="ml-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void toggleStar(match.id);
+                      }}
+                      className="ml-2"
+                      aria-label="Remove from watchlist"
+                    >
                       <Star className="text-neon-gold" fill="#FFC200" size={20} />
                     </button>
                   </div>
@@ -752,9 +846,16 @@ function App() {
                 </div>
               </div>
 
-              <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors ml-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void toggleStar(match.id);
+                }}
+                className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors ml-2"
+                aria-label="Add to watchlist"
+              >
                 <Star size={18} />
-              </div>
+              </button>
                 </motion.div>
               ))}
             </div>
