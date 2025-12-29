@@ -207,6 +207,8 @@ export default function WarRoom({
   userBalance = 0,
 }: WarRoomProps) {
   const [activeTab, setActiveTab] = useState<TabType>('signals');
+  // Entry gate: show War Room UI first, load reports only after user confirms.
+  const [hasEntered, setHasEntered] = useState(false);
   const [showBettingSlip, setShowBettingSlip] = useState(false);
   const [betAmount, setBetAmount] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -218,6 +220,12 @@ export default function WarRoom({
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Reset entry gate whenever switching to a different match
+  useEffect(() => {
+    setHasEntered(false);
+    setActiveTab('signals');
+  }, [match.id]);
   const [selectedTrader, setSelectedTrader] = useState<any | null>(null);
 
   const tabs = [
@@ -611,6 +619,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       return;
     }
 
+    // Entry gate: do not start fetching/subscribing until user confirms entering War Room.
+    if (!hasEntered) {
+      setLiveSignals([]);
+      setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
+      setIsLoadingAnalysis(false);
+      return;
+    }
+
     // Nuclear: force convert to number (URL params / payloads are often strings)
     const currentFixtureIdFromUrl = Number(match.id);
     const thisRequestFixtureId = currentFixtureIdFromUrl;
@@ -978,7 +994,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       setLiveSignals([]);
       setAnalysisData({ hdp: null, ou: null, oneXtwo: null });
     };
-  }, [match.id, match.status, match.league, match.home, match.away]);
+  }, [hasEntered, match.id, match.status, match.league, match.home, match.away]);
 
   // Determine which signals to display based on match status
   const currentFixtureIdForRender = Number(match.id);
@@ -1083,6 +1099,22 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               exit={{ opacity: 0, x: 20 }}
               className="space-y-6 pb-28"
             >
+              {!hasEntered && (
+                <div className="bg-black/30 border border-white/10 rounded-xl p-5">
+                  <div className="text-sm font-bold text-neon-gold mb-2">Enter War Room</div>
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    温馨提示：报告通常会在 <span className="text-white font-semibold">开赛前 3 分钟</span> 生成。
+                    如果还没准备好，你会看到 <span className="text-white font-semibold">“Waiting for AI Analysis…”</span>。
+                  </div>
+                  <button
+                    onClick={() => setHasEntered(true)}
+                    className="w-full mt-4 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-xl"
+                  >
+                    Enter War Room <Activity size={16} />
+                  </button>
+                </div>
+              )}
+
               {/* Category Filters */}
               <div className="flex gap-2">
                 {[
@@ -1128,7 +1160,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
               {/* Signals List (Sniper first, then Analysis) */}
               <div className="space-y-4">
-                {isLoadingAnalysis ? (
+                {!hasEntered ? null : isLoadingAnalysis ? (
                   // Loading state
                   <div className="text-center py-8 text-gray-400">
                     <div className="animate-spin w-8 h-8 border-2 border-neon-gold border-t-transparent rounded-full mx-auto mb-2"></div>
@@ -1208,110 +1240,125 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               <div className="flex items-center gap-2 text-neon-gold text-xs font-semibold uppercase tracking-wide">
                 <span className="text-sm">🔒 VIP Insider Access</span>
               </div>
-              
-              {/* Strict Gating: only render LiveChat when a signal exists */}
-              {match.analysis.signal && match.analysis.signal.trim().length > 0 ? (
-                chatUserId && chatUsername ? (
-                  <LiveChat
-                    fixtureId={match.id}
-                    currentUser={{ id: chatUserId, username: chatUsername }}
-                onBack={() => setActiveTab('signals')}
-              />
-                ) : (
-                  <div className="text-sm text-gray-400 p-4">
-                    Chat is not available. Please ensure you are logged in.
+
+              {!hasEntered ? (
+                <div className="bg-black/30 border border-white/10 rounded-xl p-5">
+                  <div className="text-sm font-bold text-neon-gold mb-2">Enter War Room</div>
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    进入 War Room 后才会开始加载实时数据与聊天内容。
                   </div>
-                )
+                  <button
+                    onClick={() => setHasEntered(true)}
+                    className="w-full mt-4 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-xl"
+                  >
+                    Enter War Room <Activity size={16} />
+                  </button>
+                </div>
               ) : (
-                /* Placeholder: 雷达扫描动画模块 */
-                <div className="relative h-[500px] rounded-xl overflow-hidden border border-green-500/20 bg-gradient-to-br from-green-900/10 to-emerald-900/10">
-                  {/* 绿色网格背景 */}
-                  <div 
-                    className="absolute inset-0 opacity-20"
-                    style={{
-                      backgroundImage: `
-                        linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
-                        linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
-                      `,
-                      backgroundSize: '20px 20px'
-                    }}
-                  />
-                  
-                  {/* 雷达扫描动画 */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="relative w-64 h-64">
-                      {/* 雷达圆环 */}
-                      <div className="absolute inset-0 rounded-full border border-green-500/30" />
-                      <div className="absolute inset-[25%] rounded-full border border-green-500/20" />
-                      <div className="absolute inset-[50%] rounded-full border border-green-500/10" />
-                      
-                      {/* 扫描线 */}
-                      <motion.div
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          background: 'conic-gradient(from 0deg, transparent 0deg, rgba(34, 197, 94, 0.3) 60deg, transparent 120deg)',
-                        }}
-                        animate={{ rotate: 360 }}
-                        transition={{
-                          duration: 3,
-                          repeat: Infinity,
-                          ease: 'linear',
-                        }}
-                      />
-                      
-                      {/* 中心点 */}
-                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50" />
-                      
-                      {/* 扫描点动画 */}
-                      {[0, 1, 2, 3].map((i) => (
+                /* Strict Gating: only render LiveChat when a signal exists */
+                match.analysis.signal && match.analysis.signal.trim().length > 0 ? (
+                  chatUserId && chatUsername ? (
+                    <LiveChat
+                      fixtureId={match.id}
+                      currentUser={{ id: chatUserId, username: chatUsername }}
+                      onBack={() => setActiveTab('signals')}
+                    />
+                  ) : (
+                    <div className="text-sm text-gray-400 p-4">
+                      Chat is not available. Please ensure you are logged in.
+                    </div>
+                  )
+                ) : (
+                  /* Placeholder: 雷达扫描动画模块 */
+                  <div className="relative h-[500px] rounded-xl overflow-hidden border border-green-500/20 bg-gradient-to-br from-green-900/10 to-emerald-900/10">
+                    {/* 绿色网格背景 */}
+                    <div 
+                      className="absolute inset-0 opacity-20"
+                      style={{
+                        backgroundImage: `
+                          linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+                          linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '20px 20px'
+                      }}
+                    />
+                    
+                    {/* 雷达扫描动画 */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="relative w-64 h-64">
+                        {/* 雷达圆环 */}
+                        <div className="absolute inset-0 rounded-full border border-green-500/30" />
+                        <div className="absolute inset-[25%] rounded-full border border-green-500/20" />
+                        <div className="absolute inset-[50%] rounded-full border border-green-500/10" />
+                        
+                        {/* 扫描线 */}
                         <motion.div
-                          key={i}
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400"
+                          className="absolute inset-0 rounded-full"
                           style={{
-                            originX: 0.5,
-                            originY: 0.5,
+                            background: 'conic-gradient(from 0deg, transparent 0deg, rgba(34, 197, 94, 0.3) 60deg, transparent 120deg)',
                           }}
-                          animate={{
-                            x: [
-                              Math.cos((i * 90) * (Math.PI / 180)) * 100,
-                              Math.cos((i * 90) * (Math.PI / 180)) * 120,
-                              Math.cos((i * 90) * (Math.PI / 180)) * 100,
-                            ],
-                            y: [
-                              Math.sin((i * 90) * (Math.PI / 180)) * 100,
-                              Math.sin((i * 90) * (Math.PI / 180)) * 120,
-                              Math.sin((i * 90) * (Math.PI / 180)) * 100,
-                            ],
-                            opacity: [0.3, 0.8, 0.3],
-                          }}
+                          animate={{ rotate: 360 }}
                           transition={{
-                            duration: 2,
+                            duration: 3,
                             repeat: Infinity,
-                            delay: i * 0.5,
-                            ease: 'easeInOut',
+                            ease: 'linear',
                           }}
                         />
-                      ))}
+                        
+                        {/* 中心点 */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50" />
+                        
+                        {/* 扫描点动画 */}
+                        {[0, 1, 2, 3].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-green-400"
+                            style={{
+                              originX: 0.5,
+                              originY: 0.5,
+                            }}
+                            animate={{
+                              x: [
+                                Math.cos((i * 90) * (Math.PI / 180)) * 100,
+                                Math.cos((i * 90) * (Math.PI / 180)) * 120,
+                                Math.cos((i * 90) * (Math.PI / 180)) * 100,
+                              ],
+                              y: [
+                                Math.sin((i * 90) * (Math.PI / 180)) * 100,
+                                Math.sin((i * 90) * (Math.PI / 180)) * 120,
+                                Math.sin((i * 90) * (Math.PI / 180)) * 100,
+                              ],
+                              opacity: [0.3, 0.8, 0.3],
+                            }}
+                            transition={{
+                              duration: 2,
+                              repeat: Infinity,
+                              delay: i * 0.5,
+                              ease: 'easeInOut',
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* 文案 */}
+                    <div className="absolute bottom-8 left-0 right-0 text-center">
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
+                        className="space-y-2"
+                      >
+                        <p className="text-green-400 font-mono text-sm font-semibold tracking-wider">
+                          Analyzing Market Depth...
+                        </p>
+                        <p className="text-green-500/70 font-mono text-xs tracking-wide">
+                          Waiting for Sniper Signal.
+                        </p>
+                      </motion.div>
                     </div>
                   </div>
-                  
-                  {/* 文案 */}
-                  <div className="absolute bottom-8 left-0 right-0 text-center">
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="space-y-2"
-                    >
-                      <p className="text-green-400 font-mono text-sm font-semibold tracking-wider">
-                        Analyzing Market Depth...
-                      </p>
-                      <p className="text-green-500/70 font-mono text-xs tracking-wide">
-                        Waiting for Sniper Signal.
-                      </p>
-                    </motion.div>
-                  </div>
-                </div>
+                )
               )}
             </motion.div>
           )}
@@ -1324,7 +1371,20 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               exit={{ opacity: 0, x: 20 }}
               className="space-y-4"
             >
-              {selectedTrader ? (
+              {!hasEntered ? (
+                <div className="bg-black/30 border border-white/10 rounded-xl p-5">
+                  <div className="text-sm font-bold text-neon-gold mb-2">Enter War Room</div>
+                  <div className="text-xs text-gray-300 leading-relaxed">
+                    进入 War Room 后才会开始加载 Copy Trade 模块。
+                  </div>
+                  <button
+                    onClick={() => setHasEntered(true)}
+                    className="w-full mt-4 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-xl"
+                  >
+                    Enter War Room <Activity size={16} />
+                  </button>
+                </div>
+              ) : selectedTrader ? (
                 <TraderProfile trader={selectedTrader} onClose={() => setSelectedTrader(null)} />
               ) : (
                 <CopyTrade userId={chatUserId} onSelectTrader={(trader) => setSelectedTrader(trader)} />

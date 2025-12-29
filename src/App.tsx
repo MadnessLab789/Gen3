@@ -741,8 +741,8 @@ function App() {
 
                   <button 
                     onClick={() => {
-                      // Show entry UI first; user confirms before loading War Room
                       setActiveMatch(match);
+                      setCurrentView('warroom');
                     }}
                     disabled={false}
                     className="w-full mt-3 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-lg"
@@ -776,7 +776,7 @@ function App() {
               className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
               onClick={() => {
                 setActiveMatch(match);
-                // Stay on home and open the "Enter War Room" overlay first
+                setCurrentView('warroom');
               }}
             >
               <div className="flex items-center gap-3 flex-1">
@@ -825,51 +825,6 @@ function App() {
           ))}
         </div>
       </div>
-
-      <AnimatePresence>
-        {currentView === 'home' && activeMatch && (
-          <motion.div
-            key="warroom-entry"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="fixed inset-0 z-50 bg-surface/95 backdrop-blur-xl overflow-y-auto"
-          >
-            <div className="min-h-screen max-w-md mx-auto px-4 pt-6 pb-24">
-              <div className="flex items-center gap-3 mb-6">
-                <button
-                  onClick={() => setActiveMatch(null)}
-                  className="p-2 hover:bg-surface-highlight rounded-lg transition-colors"
-                  aria-label="Back"
-                >
-                  <ArrowLeft className="w-5 h-5 text-white" />
-                </button>
-                <div className="min-w-0">
-                  <div className="text-xs text-gray-400 font-mono truncate">{activeMatch.league}</div>
-                  <div className="text-lg font-black text-white truncate">
-                    {activeMatch.home} <span className="text-gray-500 font-semibold">vs</span> {activeMatch.away}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-black/30 border border-white/10 rounded-xl p-5 mb-4">
-                <div className="text-sm font-bold text-neon-gold mb-2">Enter War Room</div>
-                <div className="text-xs text-gray-300 leading-relaxed">
-                  Warm tip: Reports are usually generated about <span className="text-white font-semibold">3 minutes before kickoff</span>.
-                  If analysis isn’t ready yet, you’ll see <span className="text-white font-semibold">“Waiting for AI Analysis…”</span>.
-                </div>
-              </div>
-
-              <button
-                onClick={() => void handleEnterWarRoom(activeMatch)}
-                className="w-full py-4 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-xl"
-              >
-                Enter War Room <Activity size={16} />
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showWallet && <WalletModal balance={user?.coins ?? 0} onClose={() => setShowWallet(false)} />}
