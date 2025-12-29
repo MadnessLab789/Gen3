@@ -45,8 +45,9 @@ function mergeAndSort(prev: GlobalChatRow[], next: GlobalChatRow[]): GlobalChatR
 export default function GlobalChat(props: {
   currentUser: { id: number; username: string };
   onBack: () => void;
+  withTabBar?: boolean;
 }) {
-  const { currentUser, onBack } = props;
+  const { currentUser, onBack, withTabBar = false } = props;
   const sb = supabase;
 
   const [messages, setMessages] = useState<GlobalChatRow[]>([]); // start empty (no mock)
@@ -340,7 +341,11 @@ export default function GlobalChat(props: {
         </div>
 
         {/* Input bar (pinned bottom) */}
-        <div className="sticky bottom-0 z-50 border-t border-white/10 bg-background/80 backdrop-blur-xl px-4 py-3 pb-[env(safe-area-inset-bottom)]">
+        <div
+          className={`sticky bottom-0 z-50 border-t border-white/10 bg-background/80 backdrop-blur-xl px-4 py-3 ${
+            withTabBar ? 'pb-[calc(env(safe-area-inset-bottom)+76px)]' : 'pb-[env(safe-area-inset-bottom)]'
+          }`}
+        >
           <div className="flex gap-2">
             <input
               value={text}

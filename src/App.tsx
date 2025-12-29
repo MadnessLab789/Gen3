@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
+import { Star, Zap, Activity, Trophy, Clock, Home, MessageCircle, LifeBuoy, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
 import WalletModal from './components/WalletModal';
 import GlobalChat from './components/Chat/GlobalChat';
+import Support from './components/Support';
+import Profile from './components/Profile';
 import { supabase } from './supabaseClient';
 
 declare global {
@@ -165,7 +167,9 @@ function App() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'warroom' | 'chat'>('home');
+  const [currentView, setCurrentView] = useState<
+    'home' | 'warroom' | 'chat' | 'support' | 'profile'
+  >('chat');
   const [showWallet, setShowWallet] = useState(false);
   const [referrerId, setReferrerId] = useState<number | null>(null);
   const [bannerMessage] = useState<string | null>(null);
@@ -549,30 +553,8 @@ function App() {
     );
   }
 
-  if (currentView === 'chat') {
-    if (!user) {
-      return (
-        <div className="min-h-screen bg-background text-white flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-400">Please wait while loading user data...</p>
-          </div>
-        </div>
-      );
-    }
-    
-    return (
-      <GlobalChat
-        currentUser={{ id: user.id, username: user.username || user.first_name }}
-        onBack={() => setCurrentView('home')}
-      />
-    );
-  }
-
   return (
-    <div
-      className="min-h-screen bg-background text-white pb-20 px-4 pt-6 max-w-md mx-auto relative font-sans"
-      data-referrer-id={referrerId ?? undefined}
-    >
+    <div className="min-h-screen bg-background text-white relative font-sans" data-referrer-id={referrerId ?? undefined}>
       <AnimatePresence>
         {bannerMessage && (
           <motion.div
@@ -588,70 +570,26 @@ function App() {
         )}
       </AnimatePresence>
 
-      <Header onBalanceClick={() => setShowWallet(true)} />
+      {/* Main content (tabs) */}
+      {currentView === 'home' && (
+        <div className="pb-[88px] px-4 pt-6 max-w-md mx-auto relative">
+          <Header onBalanceClick={() => setShowWallet(true)} />
 
-      {/* Bottom navigation: Home / Chat */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-3 bg-surface/95 backdrop-blur-xl border-t border-white/10 z-40">
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={async () => {
-              if (currentView === 'home') {
-                await refreshData();
-              } else {
-                setCurrentView('home');
-              }
-            }}
-            className={`px-3 py-3 rounded-lg text-xs font-mono border transition-all ${
-              currentView === 'home'
-                ? 'bg-neon-gold/20 border-neon-gold/50 text-neon-gold'
-                : 'bg-surface-highlight border-white/10 text-white hover:border-neon-gold/30'
-            }`}
-          >
-            HOME
-          </button>
-        <button
-            onClick={() => {
-              // Telegram: enforce identity match. Browser/dev: allow (we already fallback to a DevUser in init logic).
-              const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-              // Only treat as "real Telegram WebApp" when we actually have a valid Telegram user id.
-              if (typeof tgUserId === 'number') {
-                if (!user || tgUserId !== user.id) {
-                  showTelegramAlert('Please open in Telegram');
-                  return;
-                }
-                setCurrentView('chat');
-                return;
-              }
-
-              if (!user) {
-                window.alert('User not ready yet. Please try again.');
-                return;
-              }
-
-              setCurrentView('chat');
-            }}
-            className="bg-surface-highlight px-3 py-3 rounded-lg text-xs font-mono border border-neon-gold/30 text-neon-gold hover:border-neon-gold/50 hover:bg-surface-highlight/80 transition-all"
-          >
-            GLOBAL CHAT
-        </button>
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {starredMatches.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
-              <Star size={12} fill="currentColor" />
-              Watchlist & Signals
-            </div>
-            
-            <div className="space-y-4">
-              {starredMatches.map((match) => (
-                <motion.div 
-                  layoutId={`match-${match.id}`}
-                  key={match.id} 
-                  className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
-                >
+          <AnimatePresence>
+            {starredMatches.length > 0 && (
+              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+                <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
+                  <Star size={12} fill="currentColor" />
+                  Watchlist & Signals
+                </div>
+                
+                <div className="space-y-4">
+                  {starredMatches.map((match) => (
+                    <motion.div 
+                      layoutId={`match-${match.id}`}
+                      key={match.id} 
+                      className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
+                    >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -741,8 +679,7 @@ function App() {
 
                   <button 
                     onClick={() => {
-                      setActiveMatch(match);
-                      setCurrentView('warroom');
+                      void handleEnterWarRoom(match);
                     }}
                     disabled={false}
                     className="w-full mt-3 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-lg"
@@ -756,29 +693,26 @@ function App() {
                       VIP Valid until: {formatVipDate(user.vip_end_time)}
                     </div>
                   )}
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <div>
-        <h2 className="text-gray-500 text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2">
-          <Clock size={12} /> Upcoming / Live
-        </h2>
-        
-        <div className="space-y-2">
-          {unstarredMatches.map((match) => (
-            <motion.div 
-              layoutId={`match-${match.id}`}
-              key={match.id}
-              className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
-              onClick={() => {
-                setActiveMatch(match);
-                setCurrentView('warroom');
-              }}
-            >
+          <div>
+            <h2 className="text-gray-500 text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2">
+              <Clock size={12} /> Upcoming / Live
+            </h2>
+            
+            <div className="space-y-2">
+              {unstarredMatches.map((match) => (
+                <motion.div 
+                  layoutId={`match-${match.id}`}
+                  key={match.id}
+                  className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
+                  onClick={() => void handleEnterWarRoom(match)}
+                >
               <div className="flex items-center gap-3 flex-1">
                 {/* Date and Time */}
                 <div className="w-16 text-center border-r border-white/5 pr-3">
@@ -821,8 +755,127 @@ function App() {
               <div className="p-2 text-gray-600 group-hover:text-neon-gold transition-colors ml-2">
                 <Star size={18} />
               </div>
-            </motion.div>
-          ))}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {currentView === 'chat' && (
+        <>
+          {!user ? (
+            <div className="min-h-screen bg-background text-white flex items-center justify-center pb-[88px]">
+              <div className="text-center">
+                <p className="text-gray-400">Please wait while loading user data...</p>
+              </div>
+            </div>
+          ) : (
+            <GlobalChat
+              currentUser={{ id: user.id, username: user.username || user.first_name }}
+              onBack={() => setCurrentView('home')}
+              withTabBar
+            />
+          )}
+        </>
+      )}
+
+      {currentView === 'support' && (
+        <Support
+          onBack={() => setCurrentView('home')}
+          showAlert={showTelegramAlert}
+          onOpenTelegramSupport={() => window.open('https://t.me/oddsflow', '_blank')}
+          onOpenTelegramVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
+        />
+      )}
+
+      {currentView === 'profile' && (
+        <Profile
+          user={user}
+          isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
+          onBack={() => setCurrentView('home')}
+          showAlert={showTelegramAlert}
+          onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
+        />
+      )}
+
+      {/* Persistent Tab Bar (mobile app feel) */}
+      <div className="fixed bottom-0 left-0 right-0 z-[90]">
+        <div className="max-w-md mx-auto px-4 pb-[env(safe-area-inset-bottom)]">
+          <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.35)]">
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={async () => {
+                  if (currentView === 'home') await refreshData();
+                  setCurrentView('home');
+                }}
+                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
+                  currentView === 'home'
+                    ? 'bg-white/5 border border-neon-gold/30 text-neon-gold'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                aria-label="Home"
+              >
+                <Home size={18} />
+                <span className="text-[10px] font-mono">HOME</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  // Telegram: enforce identity match. Browser/dev: allow (we already fallback to a DevUser in init logic).
+                  const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+                  if (typeof tgUserId === 'number') {
+                    if (!user || tgUserId !== user.id) {
+                      showTelegramAlert('Please open in Telegram');
+                      return;
+                    }
+                    setCurrentView('chat');
+                    return;
+                  }
+                  if (!user) {
+                    window.alert('User not ready yet. Please try again.');
+                    return;
+                  }
+                  setCurrentView('chat');
+                }}
+                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
+                  currentView === 'chat'
+                    ? 'bg-gradient-to-r from-neon-green to-neon-gold text-black shadow-[0_0_20px_rgba(34,197,94,0.25)]'
+                    : 'bg-gradient-to-r from-neon-green/20 to-neon-gold/20 text-neon-gold hover:from-neon-green/30 hover:to-neon-gold/30 border border-neon-gold/20'
+                }`}
+                aria-label="Global Chat"
+              >
+                <MessageCircle size={18} />
+                <span className="text-[10px] font-mono tracking-wide">GLOBAL</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentView('support')}
+                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
+                  currentView === 'support'
+                    ? 'bg-white/5 border border-white/10 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                aria-label="Support"
+              >
+                <LifeBuoy size={18} />
+                <span className="text-[10px] font-mono">SUPPORT</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentView('profile')}
+                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
+                  currentView === 'profile'
+                    ? 'bg-white/5 border border-white/10 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-white/5'
+                }`}
+                aria-label="Profile"
+              >
+                <User size={18} />
+                <span className="text-[10px] font-mono">PROFILE</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
