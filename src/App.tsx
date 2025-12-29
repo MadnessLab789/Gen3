@@ -139,6 +139,8 @@ const fetchMatchesFromSupabase = async (): Promise<Match[]> => {
       .select('*')
       // Filter out finished matches (Full Time)
       .neq('type', 'FT')
+      // Some data sources mark FT using status_short
+      .neq('status_short', 'FT')
       .order('start_date_msia', { ascending: true });
 
     if (error) {
@@ -207,7 +209,7 @@ function App() {
           // When a match is updated (score, status, etc.), update the corresponding match in state
           const updatedPrematch = payload.new;
           // If it just became Full Time, remove it from the local list immediately
-          if ((updatedPrematch as any)?.type === 'FT') {
+          if ((updatedPrematch as any)?.type === 'FT' || (updatedPrematch as any)?.status_short === 'FT') {
             setMatches((prev) =>
               prev.filter((m) => m.id !== (updatedPrematch as any).fixture_id && m.id !== (updatedPrematch as any).id)
             );
