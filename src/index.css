@@ -2,8 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background: radial-gradient(circle at 50% -20%, #2e1065 0%, #0f0518 80%);
-  color: white;
-  min-height: 100vh;
+@layer base {
+  body {
+    /* Quant terminal theme */
+    background: #0a0a0a;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    @apply text-white min-h-screen antialiased;
+  }
+
+  /* 优化默认滚动条，使其符合终端风格 */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full;
+  }
+}
+
+@layer components {
+  /**
+   * 进阶建议：金属切割质感卡片
+   * 原理：通过外层 1px 的渐变内边距，透出边框线的效果
+   */
+  .premium-card {
+    @apply relative p-[1px] rounded-xl overflow-hidden;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02));
+  }
+  
+  .premium-card-content {
+    @apply bg-[#121212] rounded-[11px] h-full w-full p-4;
+  }
+
+  /**
+   * 数据专用类：强制等宽且紧凑
+   * 适用于：赔率、余额、TG ID、时间
+   */
+  .font-data {
+    font-family: 'JetBrains Mono', 'ui-monospace', monospace;
+    @apply tracking-tighter;
+  }
+
+  /**
+   * VIP 状态呼吸灯
+   */
+  .status-pulse {
+    @apply relative flex h-2 w-2 mr-2;
+  }
+
+  .status-pulse-dot {
+    @apply animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 bg-green-400;
+  }
+
+  /**
+   * 磨砂金质感按钮
+   */
+  .btn-gold {
+    @apply bg-neon-gold text-black font-black uppercase tracking-tighter 
+           px-4 py-2 rounded-lg transition-all duration-200
+           hover:brightness-110 active:scale-95 disabled:opacity-50;
+  }
+
+  /**
+   * 玻璃拟态导航栏
+   */
+  .glass-nav {
+    @apply bg-[#0a0a0a]/80 backdrop-blur-md border-t border-white/10;
+  }
+}
+
+/* 简单的入场动画，让数据加载看起来更丝滑 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-in {
+  animation: fadeIn 0.4s ease-out forwards;
 }

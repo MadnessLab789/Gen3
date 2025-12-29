@@ -912,6 +912,8 @@ function App() {
           showAlert={showTelegramAlert}
           onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
           onOpenSupport={() => setCurrentView('support')}
+          onOpenWallet={() => setCurrentView('wallet')}
+          watchlistCount={watchlistIds.size}
         />
       )}
 
