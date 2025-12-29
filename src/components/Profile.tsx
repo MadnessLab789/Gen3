@@ -47,7 +47,9 @@ export default function Profile(props: {
   onOpenSupport?: () => void;
   onOpenWallet?: () => void;
   onOpenRecharge?: () => void;
+  onOpenSettings?: () => void;
   watchlistCount?: number;
+  hideBalance?: boolean;
 }) {
   const {
     user,
@@ -59,7 +61,9 @@ export default function Profile(props: {
     onOpenSupport,
     onOpenWallet,
     onOpenRecharge,
+    onOpenSettings,
     watchlistCount,
+    hideBalance = false,
   } = props;
 
   const displayName = user?.username ? `@${user.username}` : user?.first_name || 'Guest';
@@ -168,7 +172,7 @@ export default function Profile(props: {
       key: 'settings',
       label: 'Settings',
       Icon: Settings,
-      onClick: () => showAlert('Settings coming soon.'),
+      onClick: () => onOpenSettings?.() ?? showAlert('Settings page not configured yet.'),
     },
     {
       key: 'support',
@@ -262,7 +266,9 @@ export default function Profile(props: {
                   className="text-lg font-black font-mono tracking-tight tabular-nums"
                   style={{ color: gold, textShadow: `0 0 6px rgba(255,215,0,0.18)` }}
                 >
-                  ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {hideBalance
+                    ? '******'
+                    : `$${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </div>
               </div>
               <button
@@ -287,8 +293,10 @@ export default function Profile(props: {
               >
                 <div className={labelCls}>{s.label}</div>
                 {s.label === 'TG ID' ? (
-                  <div className="text-sm text-white mt-1 font-data tabular-nums break-all leading-tight">
+                  <div className="mt-1 flex-1 min-w-0 overflow-hidden">
+                    <div className="text-[13px] text-white font-data tabular-nums tracking-tighter break-all leading-tight">
                     {s.value}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-lg font-black text-white mt-1 font-mono tabular-nums">{s.value}</div>

@@ -11,6 +11,7 @@ import BottomNav, { type MainTab } from './components/BottomNav';
 import RadarScreen from './components/RadarScreen';
 import WalletScreen from './components/WalletScreen';
 import RechargeModal from './components/RechargeModal';
+import SettingsScreen from './components/SettingsScreen';
 import { supabase } from './supabaseClient';
 
 declare global {
@@ -172,10 +173,26 @@ function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [currentView, setCurrentView] = useState<
-    'home' | 'radar' | 'chat' | 'wallet' | 'me' | 'warroom' | 'support'
+    'home' | 'radar' | 'chat' | 'wallet' | 'me' | 'warroom' | 'support' | 'settings'
   >('home');
   const [showWallet, setShowWallet] = useState(false);
   const [showRecharge, setShowRecharge] = useState(false);
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem('oddsflow_hide_balance');
+      return v === '1' || v === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [_incognitoMode, setIncognitoMode] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem('oddsflow_incognito_mode');
+      return v === '1' || v === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [referrerId, setReferrerId] = useState<number | null>(null);
   const [bannerMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -296,10 +313,10 @@ function App() {
   const showTelegramAlert = (message: string) => {
     const tg = window.Telegram?.WebApp;
     try {
-      if (tg?.showAlert) {
-        tg.showAlert(message);
+    if (tg?.showAlert) {
+      tg.showAlert(message);
         return;
-      }
+    }
     } catch {
       // Some browsers load telegram-web-app.js but do not support WebApp methods.
     }
@@ -645,7 +662,7 @@ function App() {
     );
   }
 
-  return (
+    return (
     <div className="min-h-screen bg-background text-white relative font-sans" data-referrer-id={referrerId ?? undefined}>
       <AnimatePresence>
         {bannerMessage && (
@@ -665,29 +682,29 @@ function App() {
       {/* Main content (tabs) */}
       {currentView === 'home' && (
         <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative">
-          <Header onBalanceClick={() => setShowWallet(true)} />
+      <Header onBalanceClick={() => setShowWallet(true)} />
 
-          <AnimatePresence>
-            {starredMatches.length > 0 && (
-              <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-                <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
-                  <Star size={12} fill="currentColor" />
-                  Watchlist & Signals
-                </div>
-                
-                <div className="space-y-4">
-                  {starredMatches.map((match) => (
-                    <motion.div 
-                      layoutId={`match-${match.id}`}
-                      key={match.id} 
-                      className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
-                    >
+      <AnimatePresence>
+        {starredMatches.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+            <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
+              <Star size={12} fill="currentColor" />
+              Watchlist & Signals
+            </div>
+            
+            <div className="space-y-4">
+              {starredMatches.map((match) => (
+                <motion.div 
+                  layoutId={`match-${match.id}`}
+                  key={match.id} 
+                  className="bg-surface/80 backdrop-blur-md border border-neon-purple/20 rounded-xl p-4 shadow-[0_0_20px_rgba(127,86,217,0.1)] relative overflow-hidden"
+                >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                          <Trophy size={10} /> {match.league}
-                        </span>
+                      <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
+                        <Trophy size={10} /> {match.league}
+                      </span>
                         {match.date && (
                           <span className="text-[10px] text-gray-500 font-mono">{match.date}</span>
                         )}
@@ -697,8 +714,8 @@ function App() {
                           <img src={match.homeLogo} alt={match.home} className="w-6 h-6 object-contain" />
                         )}
                         <h3 className="text-lg font-bold">
-                          {match.home} <span className="text-gray-500 text-sm">vs</span> {match.away}
-                        </h3>
+                        {match.home} <span className="text-gray-500 text-sm">vs</span> {match.away}
+                      </h3>
                         {match.awayLogo && (
                           <img src={match.awayLogo} alt={match.away} className="w-6 h-6 object-contain" />
                         )}
@@ -707,15 +724,15 @@ function App() {
                         {match.score && (
                           <span className="text-sm font-mono text-white">{match.score}</span>
                         )}
-                        {match.status === 'LIVE' && (
+                      {match.status === 'LIVE' && (
                           <span className="text-neon-red font-mono text-xs animate-pulse">
                             ● LIVE
-                          </span>
-                        )}
+                        </span>
+                      )}
                         {match.status !== 'LIVE' && match.time && (
                           <span className="text-xs text-gray-400 font-mono">{match.time}</span>
                         )}
-                      </div>
+                    </div>
                     </div>
                     <button
                       onClick={(e) => {
@@ -792,24 +809,24 @@ function App() {
                       VIP Valid until: {formatVipDate(user.vip_end_time)}
                     </div>
                   )}
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <div>
-            <h2 className="text-gray-500 text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2">
-              <Clock size={12} /> Upcoming / Live
-            </h2>
-            
-            <div className="space-y-2">
-              {unstarredMatches.map((match) => (
-                <motion.div 
-                  layoutId={`match-${match.id}`}
-                  key={match.id}
-                  className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
+      <div>
+        <h2 className="text-gray-500 text-xs font-bold tracking-widest uppercase mb-3 flex items-center gap-2">
+          <Clock size={12} /> Upcoming / Live
+        </h2>
+        
+        <div className="space-y-2">
+          {unstarredMatches.map((match) => (
+            <motion.div 
+              layoutId={`match-${match.id}`}
+              key={match.id}
+              className="group bg-surface hover:bg-surface-highlight border border-neon-purple/20 rounded-lg p-3 flex items-center justify-between transition-colors cursor-pointer"
                   onClick={() => void handleEnterWarRoom(match)}
                 >
               <div className="flex items-center gap-3 flex-1">
@@ -819,7 +836,7 @@ function App() {
                     <span className="text-[10px] font-mono text-gray-400 block mb-0.5">{match.date}</span>
                   )}
                   <span className="text-xs font-mono text-gray-300 block">{match.time.replace('LIVE', '').trim()}</span>
-                  {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
+                   {match.status === 'LIVE' && <span className="text-[8px] text-neon-red font-bold">LIVE</span>}
                 </div>
                 
                 {/* Team Logos and Names */}
@@ -861,10 +878,10 @@ function App() {
               >
                 <Star size={18} />
               </button>
-                </motion.div>
-              ))}
-            </div>
-          </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
         </div>
       )}
 
@@ -909,14 +926,16 @@ function App() {
       {currentView === 'me' && (
         <Profile
           user={user}
-          isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
+            isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
           showBack={false}
           showAlert={showTelegramAlert}
           onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
           onOpenSupport={() => setCurrentView('support')}
           onOpenWallet={() => setCurrentView('wallet')}
           onOpenRecharge={() => setShowRecharge(true)}
+          onOpenSettings={() => setCurrentView('settings')}
           watchlistCount={watchlistIds.size}
+          hideBalance={hideBalance}
         />
       )}
 
@@ -929,10 +948,24 @@ function App() {
         />
       )}
 
+      {currentView === 'settings' && (
+        <SettingsScreen
+          telegramId={user?.telegram_id ?? user?.id ?? 0}
+          onBack={() => setCurrentView('me')}
+          showAlert={showTelegramAlert}
+          onHideBalanceChange={setHideBalance}
+          onIncognitoChange={setIncognitoMode}
+        />
+      )}
+
       {/* Bottom Navigation (5 tabs, chat is floating) */}
       {currentView !== 'warroom' && (
         <BottomNav
-          activeTab={(currentView as MainTab) ?? 'home'}
+          activeTab={
+            (currentView === 'support' || currentView === 'settings'
+              ? 'me'
+              : (currentView as MainTab)) ?? 'home'
+          }
           onChange={(tab) => {
             if (tab === 'home') void refreshData();
 
