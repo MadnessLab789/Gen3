@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Crown, History, Settings, Star } from 'lucide-react';
+import { ArrowLeft, Bell, Crown, History, LifeBuoy, Settings, Star } from 'lucide-react';
 
 export default function Profile(props: {
   user: {
@@ -11,24 +11,28 @@ export default function Profile(props: {
     is_vip?: boolean;
   } | null;
   isVip: boolean;
-  onBack: () => void;
+  onBack?: () => void;
+  showBack?: boolean;
   showAlert: (message: string) => void;
   onOpenVip?: () => void;
+  onOpenSupport?: () => void;
 }) {
-  const { user, isVip, onBack, showAlert, onOpenVip } = props;
+  const { user, isVip, onBack, showBack = true, showAlert, onOpenVip, onOpenSupport } = props;
 
   const displayName = user?.username ? `@${user.username}` : user?.first_name || 'Guest';
 
   return (
     <div className="min-h-screen bg-background text-white pb-[88px] px-4 pt-6 max-w-md mx-auto relative font-sans">
       <header className="flex items-center gap-3 mb-6">
-        <button
-          onClick={onBack}
-          className="p-2 hover:bg-surface-highlight rounded-lg transition-colors"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5 text-white" />
-        </button>
+        {showBack && onBack ? (
+          <button
+            onClick={onBack}
+            className="p-2 hover:bg-surface-highlight rounded-lg transition-colors"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+        ) : null}
         <div className="min-w-0">
           <div className="text-xs text-gray-400 font-mono">PROFILE</div>
           <div className="text-lg font-black text-white truncate">{displayName}</div>
@@ -87,6 +91,13 @@ export default function Profile(props: {
             >
               <Settings size={14} />
               Settings
+            </button>
+            <button
+              onClick={() => onOpenSupport?.() ?? showAlert('Support page not configured yet.')}
+              className="bg-surface-highlight border border-white/10 rounded-lg px-3 py-3 text-xs font-mono hover:border-neon-gold/40 transition-all flex items-center justify-center gap-2"
+            >
+              <LifeBuoy size={14} />
+              Support
             </button>
           </div>
         </div>

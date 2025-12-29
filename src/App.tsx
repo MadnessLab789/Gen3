@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Star, Zap, Activity, Trophy, Clock, Home, MessageCircle, LifeBuoy, User } from 'lucide-react';
+import { Star, Zap, Activity, Trophy, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './components/Header';
 import WarRoom from './components/WarRoom';
@@ -7,6 +7,9 @@ import WalletModal from './components/WalletModal';
 import GlobalChat from './components/Chat/GlobalChat';
 import Support from './components/Support';
 import Profile from './components/Profile';
+import BottomNav, { type MainTab } from './components/BottomNav';
+import RadarScreen from './components/RadarScreen';
+import WalletScreen from './components/WalletScreen';
 import { supabase } from './supabaseClient';
 
 declare global {
@@ -168,8 +171,8 @@ function App() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [currentView, setCurrentView] = useState<
-    'home' | 'warroom' | 'chat' | 'support' | 'profile'
-  >('chat');
+    'home' | 'radar' | 'chat' | 'wallet' | 'me' | 'warroom' | 'support'
+  >('home');
   const [showWallet, setShowWallet] = useState(false);
   const [referrerId, setReferrerId] = useState<number | null>(null);
   const [bannerMessage] = useState<string | null>(null);
@@ -659,7 +662,7 @@ function App() {
 
       {/* Main content (tabs) */}
       {currentView === 'home' && (
-        <div className="pb-[88px] px-4 pt-6 max-w-md mx-auto relative">
+        <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative">
           <Header onBalanceClick={() => setShowWallet(true)} />
 
           <AnimatePresence>
@@ -863,10 +866,22 @@ function App() {
         </div>
       )}
 
+      {currentView === 'radar' && (
+        <RadarScreen
+          matches={matches as any}
+          onBalanceClick={() => setShowWallet(true)}
+          onToggleStar={(id) => void toggleStar(id)}
+          onEnterWarRoom={(id) => {
+            const m = matches.find((x) => x.id === id);
+            if (m) void handleEnterWarRoom(m);
+          }}
+        />
+      )}
+
       {currentView === 'chat' && (
         <>
           {!user ? (
-            <div className="min-h-screen bg-background text-white flex items-center justify-center pb-[88px]">
+            <div className="min-h-screen bg-background text-white flex items-center justify-center pb-[96px]">
               <div className="text-center">
                 <p className="text-gray-400">Please wait while loading user data...</p>
               </div>
@@ -881,104 +896,64 @@ function App() {
         </>
       )}
 
+      {currentView === 'wallet' && (
+        <WalletScreen
+          balance={user?.coins ?? 0}
+          onBalanceClick={() => setShowWallet(true)}
+          showAlert={showTelegramAlert}
+        />
+      )}
+
+      {currentView === 'me' && (
+        <Profile
+          user={user}
+          isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
+          showBack={false}
+          showAlert={showTelegramAlert}
+          onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
+          onOpenSupport={() => setCurrentView('support')}
+        />
+      )}
+
       {currentView === 'support' && (
         <Support
-          onBack={() => setCurrentView('home')}
+          onBack={() => setCurrentView('me')}
           showAlert={showTelegramAlert}
           onOpenTelegramSupport={() => window.open('https://t.me/oddsflow', '_blank')}
           onOpenTelegramVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
         />
       )}
 
-      {currentView === 'profile' && (
-        <Profile
-          user={user}
-          isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
-          onBack={() => setCurrentView('home')}
-          showAlert={showTelegramAlert}
-          onOpenVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
+      {/* Bottom Navigation (5 tabs, chat is floating) */}
+      {currentView !== 'warroom' && (
+        <BottomNav
+          activeTab={(currentView as MainTab) ?? 'home'}
+          onChange={(tab) => {
+            if (tab === 'home') void refreshData();
+
+            if (tab === 'chat') {
+              // Telegram: enforce identity match. Browser/dev: allow (we already fallback to a DevUser in init logic).
+              const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+              if (typeof tgUserId === 'number') {
+                if (!user || tgUserId !== user.id) {
+                  showTelegramAlert('Please open in Telegram');
+                  return;
+                }
+                setCurrentView('chat');
+                return;
+              }
+              if (!user) {
+                window.alert('User not ready yet. Please try again.');
+                return;
+              }
+              setCurrentView('chat');
+              return;
+            }
+
+            setCurrentView(tab);
+          }}
         />
       )}
-
-      {/* Persistent Tab Bar (mobile app feel) */}
-      <div className="fixed bottom-0 left-0 right-0 z-[90]">
-        <div className="max-w-md mx-auto px-4 pb-[env(safe-area-inset-bottom)]">
-          <div className="bg-surface/95 backdrop-blur-xl border border-white/10 rounded-2xl p-2 shadow-[0_0_30px_rgba(0,0,0,0.35)]">
-            <div className="grid grid-cols-4 gap-2">
-              <button
-                onClick={async () => {
-                  if (currentView === 'home') await refreshData();
-                  setCurrentView('home');
-                }}
-                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                  currentView === 'home'
-                    ? 'bg-white/5 border border-neon-gold/30 text-neon-gold'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-                aria-label="Home"
-              >
-                <Home size={18} />
-                <span className="text-[10px] font-mono">HOME</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  // Telegram: enforce identity match. Browser/dev: allow (we already fallback to a DevUser in init logic).
-                  const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-                  if (typeof tgUserId === 'number') {
-                    if (!user || tgUserId !== user.id) {
-                      showTelegramAlert('Please open in Telegram');
-                      return;
-                    }
-                    setCurrentView('chat');
-                    return;
-                  }
-                  if (!user) {
-                    window.alert('User not ready yet. Please try again.');
-                    return;
-                  }
-                  setCurrentView('chat');
-                }}
-                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                  currentView === 'chat'
-                    ? 'bg-gradient-to-r from-neon-green to-neon-gold text-black shadow-[0_0_20px_rgba(34,197,94,0.25)]'
-                    : 'bg-gradient-to-r from-neon-green/20 to-neon-gold/20 text-neon-gold hover:from-neon-green/30 hover:to-neon-gold/30 border border-neon-gold/20'
-                }`}
-                aria-label="Global Chat"
-              >
-                <MessageCircle size={18} />
-                <span className="text-[10px] font-mono tracking-wide">GLOBAL</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('support')}
-                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                  currentView === 'support'
-                    ? 'bg-white/5 border border-white/10 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-                aria-label="Support"
-              >
-                <LifeBuoy size={18} />
-                <span className="text-[10px] font-mono">SUPPORT</span>
-              </button>
-
-              <button
-                onClick={() => setCurrentView('profile')}
-                className={`flex flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                  currentView === 'profile'
-                    ? 'bg-white/5 border border-white/10 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/5'
-                }`}
-                aria-label="Profile"
-              >
-                <User size={18} />
-                <span className="text-[10px] font-mono">PROFILE</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <AnimatePresence>
         {showWallet && <WalletModal balance={user?.coins ?? 0} onClose={() => setShowWallet(false)} />}
