@@ -48,6 +48,8 @@ export default function Profile(props: {
   onOpenWallet?: () => void;
   onOpenRecharge?: () => void;
   onOpenSettings?: () => void;
+  onOpenWatchlist?: () => void;
+  onOpenNotifications?: () => void;
   watchlistCount?: number;
   hideBalance?: boolean;
 }) {
@@ -62,6 +64,8 @@ export default function Profile(props: {
     onOpenWallet,
     onOpenRecharge,
     onOpenSettings,
+    onOpenWatchlist,
+    onOpenNotifications,
     watchlistCount,
     hideBalance = false,
   } = props;
@@ -150,31 +154,31 @@ export default function Profile(props: {
       key: 'alerts',
       label: 'Notifications / Alerts',
       Icon: Bell,
-      onClick: () => showAlert('Notifications / Alerts coming soon.'),
+      onClick: () => onOpenNotifications?.() ?? onOpenSettings?.(),
     },
     {
       key: 'watchlist',
       label: 'Watchlist',
       Icon: Star,
-      onClick: () => showAlert('Watchlist is available on Home (star icon).'),
+      onClick: () => onOpenWatchlist?.(),
     },
     {
       key: 'history',
       label: 'History',
       Icon: History,
-      onClick: () => showAlert('History coming soon.'),
+      onClick: () => onOpenWallet?.(),
     },
     {
       key: 'settings',
       label: 'Settings',
       Icon: Settings,
-      onClick: () => onOpenSettings?.() ?? showAlert('Settings page not configured yet.'),
+      onClick: () => onOpenSettings?.(),
     },
     {
       key: 'support',
       label: 'Support',
       Icon: LifeBuoy,
-      onClick: () => onOpenSupport?.() ?? showAlert('Support page not configured yet.'),
+      onClick: () => onOpenSupport?.(),
     },
   ] as const;
 

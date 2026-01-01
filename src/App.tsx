@@ -193,6 +193,17 @@ function App() {
       return false;
     }
   });
+
+  // Home scroll helpers (e.g., jump to Watchlist section)
+  const watchlistSectionRef = useRef<HTMLDivElement | null>(null);
+  const [homeJump, setHomeJump] = useState<'watchlist' | null>(null);
+  useEffect(() => {
+    if (currentView !== 'home') return;
+    if (homeJump !== 'watchlist') return;
+    // allow layout to settle
+    queueMicrotask(() => watchlistSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    setHomeJump(null);
+  }, [currentView, homeJump]);
   const [referrerId, setReferrerId] = useState<number | null>(null);
   const [bannerMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -682,11 +693,12 @@ function App() {
       {/* Main content (tabs) */}
       {currentView === 'home' && (
         <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative">
-      <Header onBalanceClick={() => setShowWallet(true)} />
+          <Header onBalanceClick={() => setShowWallet(true)} hideBalance={hideBalance} />
 
       <AnimatePresence>
         {starredMatches.length > 0 && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+                <div ref={watchlistSectionRef} />
             <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
               <Star size={12} fill="currentColor" />
               Watchlist & Signals
@@ -889,6 +901,7 @@ function App() {
         <RadarScreen
           matches={matches as any}
           onBalanceClick={() => setShowWallet(true)}
+          hideBalance={hideBalance}
           onToggleStar={(id) => void toggleStar(id)}
           onEnterWarRoom={(id) => {
             const m = matches.find((x) => x.id === id);
@@ -920,6 +933,7 @@ function App() {
           balance={user?.coins ?? 0}
           onBalanceClick={() => setShowWallet(true)}
           showAlert={showTelegramAlert}
+          hideBalance={hideBalance}
         />
       )}
 
@@ -934,6 +948,11 @@ function App() {
           onOpenWallet={() => setCurrentView('wallet')}
           onOpenRecharge={() => setShowRecharge(true)}
           onOpenSettings={() => setCurrentView('settings')}
+          onOpenNotifications={() => setCurrentView('settings')}
+          onOpenWatchlist={() => {
+            setCurrentView('home');
+            setHomeJump('watchlist');
+          }}
           watchlistCount={watchlistIds.size}
           hideBalance={hideBalance}
         />

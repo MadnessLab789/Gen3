@@ -20,15 +20,16 @@ export default function RadarScreen(props: {
   onEnterWarRoom: (matchId: number) => void;
   onToggleStar: (matchId: number) => void;
   onBalanceClick: () => void;
+  hideBalance?: boolean;
 }) {
-  const { matches, onEnterWarRoom, onToggleStar, onBalanceClick } = props;
+  const { matches, onEnterWarRoom, onToggleStar, onBalanceClick, hideBalance = false } = props;
 
   const live = matches.filter((m) => m.status === 'LIVE');
   const starred = matches.filter((m) => m.isStarred);
 
   return (
     <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative">
-      <Header onBalanceClick={onBalanceClick} />
+      <Header onBalanceClick={onBalanceClick} hideBalance={hideBalance} />
 
       <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
         <Zap size={12} fill="currentColor" />

@@ -5,12 +5,13 @@ export default function WalletScreen(props: {
   balance: number;
   onBalanceClick: () => void;
   showAlert: (message: string) => void;
+  hideBalance?: boolean;
 }) {
-  const { balance, onBalanceClick, showAlert } = props;
+  const { balance, onBalanceClick, showAlert, hideBalance = false } = props;
 
   return (
     <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative">
-      <Header onBalanceClick={onBalanceClick} />
+      <Header onBalanceClick={onBalanceClick} hideBalance={hideBalance} />
 
       <div className="flex items-center gap-2 mb-3 text-neon-gold text-xs font-bold tracking-widest uppercase">
         <Wallet size={12} />
@@ -23,7 +24,11 @@ export default function WalletScreen(props: {
           <span>Total Balance</span>
         </div>
         <div className="text-4xl font-black text-neon-gold font-mono mb-6">
-          ${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className="font-data">
+            {hideBalance
+              ? '******'
+              : `$${balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

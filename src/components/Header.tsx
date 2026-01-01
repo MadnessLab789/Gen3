@@ -12,8 +12,9 @@ interface TelegramUser {
 
 export function Header(props: {
   onBalanceClick: () => void;
+  hideBalance?: boolean;
 }) {
-  const { onBalanceClick } = props;
+  const { onBalanceClick, hideBalance = false } = props;
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
   const [coins, setCoins] = useState<number>(0);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -163,11 +164,15 @@ export function Header(props: {
         onClick={onBalanceClick}
         className="bg-surface-highlight px-3 py-1 rounded-full text-xs font-mono border border-neon-gold/30 text-neon-gold hover:border-neon-gold/50 hover:bg-surface-highlight/80 transition-all cursor-pointer"
       >
-        BAL: $
-        {coins.toLocaleString('en-US', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
+        <span className="font-mono">BAL:&nbsp;</span>
+        <span className="font-data">
+          {hideBalance
+            ? '******'
+            : `$${coins.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
+        </span>
       </button>
     </div>
   );
