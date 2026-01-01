@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Check, ChevronDown, Globe, Shield, Trash2 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import countries from 'i18n-iso-countries';
+import enCountries from 'i18n-iso-countries/langs/en.json';
 
 type Prefs = {
   nationality: string;
@@ -40,6 +42,9 @@ export default function SettingsScreen(props: {
     favoriteLeagues: [],
   });
   const [saving, setSaving] = useState(false);
+  const [countryQuery, setCountryQuery] = useState('');
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [nationalityTouched, setNationalityTouched] = useState(false);
 
   const [hideBalance, setHideBalance] = useState<boolean>(() => readBool('oddsflow_hide_balance', false));
   const [incognito, setIncognito] = useState<boolean>(() => readBool('oddsflow_incognito_mode', false));
@@ -58,6 +63,35 @@ export default function SettingsScreen(props: {
     const v = (import.meta as any)?.env?.VITE_APP_VERSION;
     return String(v || 'v3');
   }, []);
+
+  const countryList = useMemo(() => {
+    try {
+      countries.registerLocale(enCountries as any);
+    } catch {
+      // ignore
+    }
+    const names = countries.getNames('en', { select: 'official' }) as Record<string, string>;
+    const toFlag = (code: string) =>
+      code
+        .toUpperCase()
+        .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+
+    return Object.entries(names)
+      .map(([code, name]) => ({
+        code: code.toUpperCase(),
+        name,
+        flag: toFlag(code),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, []);
+
+  const filteredCountries = useMemo(() => {
+    const q = countryQuery.trim().toLowerCase();
+    if (!q) return countryList.slice(0, 80);
+    return countryList
+      .filter((c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+      .slice(0, 80);
+  }, [countryList, countryQuery]);
 
   const leagues = [
     'Premier League',
@@ -98,6 +132,46 @@ export default function SettingsScreen(props: {
       cancelled = true;
     };
   }, [sb, telegramId]);
+
+  // Auto-preset nationality via GeoIP (first open only, and only if empty)
+  useEffect(() => {
+    if (!sb) return;
+    if (!Number.isFinite(telegramId) || telegramId <= 0) return;
+    if (nationalityTouched) return;
+    if (prefs.nationality && prefs.nationality.trim()) return;
+
+    try {
+      if (localStorage.getItem('oddsflow_geoip_preset_done') === '1') return;
+    } catch {
+      // ignore
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data: any = await res.json();
+        const code = String(data?.country_code ?? '').trim().toUpperCase();
+        if (!code || code.length !== 2) return;
+        if (cancelled) return;
+
+        setPrefs((p) => ({ ...p, nationality: p.nationality ? p.nationality : code }));
+        setCountryQuery('');
+        try {
+          localStorage.setItem('oddsflow_geoip_preset_done', '1');
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [sb, telegramId, prefs.nationality, nationalityTouched]);
 
   const toggleLeague = (name: string) => {
     setPrefs((prev) => {
@@ -185,19 +259,58 @@ export default function SettingsScreen(props: {
                 Nationality
               </div>
               <div className="relative">
-                <select
-                  value={prefs.nationality}
-                  onChange={(e) => setPrefs((p) => ({ ...p, nationality: e.target.value }))}
-                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white appearance-none"
+                <button
+                  onClick={() => setCountryOpen((v) => !v)}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white flex items-center justify-between hover:brightness-110 transition"
                 >
-                  <option value="">Select…</option>
-                  {['Malaysia', 'Singapore', 'Indonesia', 'Thailand', 'Vietnam', 'Philippines', 'Other'].map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-gray-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <span className="font-data">
+                    {prefs.nationality
+                      ? (() => {
+                          const found = countryList.find((c) => c.code === prefs.nationality.toUpperCase());
+                          return found ? `${found.flag} ${found.name} (${found.code})` : prefs.nationality;
+                        })()
+                      : 'Select…'}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-500" />
+                </button>
+
+                {countryOpen && (
+                  <div className="absolute z-50 mt-2 w-full rounded-xl border border-white/10 bg-surface shadow-[0_0_20px_rgba(0,0,0,0.35)] overflow-hidden">
+                    <div className="p-2 border-b border-white/10">
+                      <input
+                        value={countryQuery}
+                        onChange={(e) => {
+                          setCountryQuery(e.target.value);
+                          setNationalityTouched(true);
+                        }}
+                        placeholder="Search country…"
+                        className="w-full bg-black/30 border border-white/10 rounded-xl px-3 py-2 text-[12px] text-white font-data"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {filteredCountries.map((c) => (
+                        <button
+                          key={c.code}
+                          onClick={() => {
+                            setPrefs((p) => ({ ...p, nationality: c.code }));
+                            setNationalityTouched(true);
+                            setCountryOpen(false);
+                            setCountryQuery('');
+                          }}
+                          className="w-full px-4 py-2 text-left text-[12px] hover:bg-white/5 flex items-center gap-2"
+                        >
+                          <span className="w-6">{c.flag}</span>
+                          <span className="flex-1 min-w-0 truncate">{c.name}</span>
+                          <span className="text-gray-500 font-data">({c.code})</span>
+                        </button>
+                      ))}
+                      {filteredCountries.length === 0 && (
+                        <div className="px-4 py-3 text-[12px] text-gray-500 font-mono">No results.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -286,6 +399,7 @@ export default function SettingsScreen(props: {
                   // Explicitly remove known app keys
                   localStorage.removeItem('oddsflow_favorite_games');
                   localStorage.removeItem('oddsflow_favorite_leagues');
+                  localStorage.removeItem('oddsflow_geoip_preset_done');
 
                   // Remove all oddsflow_* keys except protected auth tokens
                   Object.keys(localStorage).forEach((key) => {
@@ -299,9 +413,11 @@ export default function SettingsScreen(props: {
 
                 // Force reset in-memory state (even if DB persists preferences)
                 setPrefs({ nationality: '', favoriteLeagues: [] });
+                setCountryQuery('');
+                setCountryOpen(false);
                 setHideBalance(false);
                 setIncognito(false);
-                showAlert('Cache cleared successfully!');
+                showAlert('Local cache cleared. Cloud preferences will sync on next refresh.');
               }}
               className="h-9 px-4 rounded-xl text-xs font-black bg-white/5 border border-white/10 hover:brightness-110 transition flex items-center gap-2"
             >
