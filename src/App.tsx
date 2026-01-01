@@ -935,6 +935,7 @@ function App() {
           showAlert={showTelegramAlert}
           hideBalance={hideBalance}
           telegramId={user?.telegram_id ?? user?.id ?? 0}
+          supabaseUserUuid={user?.supabase_user_uuid}
         />
       )}
 

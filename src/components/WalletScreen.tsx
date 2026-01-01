@@ -8,7 +8,8 @@ import {
   History, 
   CreditCard, 
   MessageSquare,
-  Zap
+  Zap,
+  X as XIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './Header';
@@ -39,12 +40,15 @@ export default function WalletScreen(props: {
   showAlert: (message: string) => void;
   hideBalance?: boolean;
   telegramId?: number;
+  supabaseUserUuid?: string;
 }) {
-  const { balance: initialBalance, onBalanceClick, showAlert, hideBalance = false, telegramId } = props;
+  const { balance: initialBalance, onBalanceClick, showAlert, hideBalance = false, telegramId, supabaseUserUuid } = props;
 
   const [activeTab, setActiveTab] = useState<'transactions' | 'betting'>('transactions');
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
+  const [depositAmount, setDepositAmount] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Detailed financial data
   const [financials, setFinancials] = useState({
@@ -135,14 +139,58 @@ export default function WalletScreen(props: {
     showAlert('Address copied to clipboard!');
   };
 
-  const handleConfirmTransfer = () => {
-    const url = `https://t.me/oddsflow_manager_bot?start=recharge_request_${telegramId}`;
-    try {
-      WebApp.openTelegramLink(url);
-    } catch {
-      window.open(url, '_blank');
+  const handleConfirmTransfer = async () => {
+    const amountNum = parseFloat(depositAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      showAlert('Please enter a valid amount.');
+      return;
     }
-    setShowDeposit(false);
+
+    if (!supabaseUserUuid) {
+      showAlert('User ID not found. Please try again.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const sb = supabase;
+    if (!sb) {
+      showAlert('Supabase not initialized.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await sb
+        .from('oddsflow_radar_transactions')
+        .insert({
+          user_id: supabaseUserUuid,
+          telegram_id: telegramId,
+          amount: amountNum,
+          status: 'pending',
+          type: 'deposit',
+          network: 'TRC20'
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+
+      if (data?.id) {
+        const url = `https://t.me/oddsflow_manager_bot?start=tx_${data.id}`;
+        try {
+          WebApp.openTelegramLink(url);
+        } catch {
+          window.open(url, '_blank');
+        }
+        setShowDeposit(false);
+        setDepositAmount('');
+      }
+    } catch (err: any) {
+      console.error('[Deposit] Error:', err);
+      showAlert(`Failed to initiate deposit: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatValue = (val: number) => {
@@ -297,7 +345,9 @@ export default function WalletScreen(props: {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowDeposit(false)}
+              onClick={() => {
+                if (!isSubmitting) setShowDeposit(false);
+              }}
               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             />
             <motion.div
@@ -316,12 +366,29 @@ export default function WalletScreen(props: {
                     <p className="text-[10px] text-gray-500 font-mono tracking-widest">NETWORK: USDT-TRC20</p>
                   </div>
                 </div>
-                <button onClick={() => setShowDeposit(false)} className="text-gray-500 hover:text-white transition">
+                <button 
+                  onClick={() => {
+                    if (!isSubmitting) setShowDeposit(false);
+                  }} 
+                  className="text-gray-500 hover:text-white transition"
+                >
                   <XIcon className="w-6 h-6" />
                 </button>
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 block font-mono">Deposit Amount (USDT)</label>
+                  <input 
+                    type="number" 
+                    placeholder="Enter amount"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    disabled={isSubmitting}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-data text-white focus:outline-none focus:border-neon-gold/50 text-lg"
+                  />
+                </div>
+
                 <div className="p-4 bg-black/40 rounded-xl border border-white/5">
                   <div className="text-[10px] text-gray-500 uppercase tracking-widest mb-2 font-mono">USDT-TRC20 Wallet Address</div>
                   <div className="flex items-center gap-2">
@@ -348,10 +415,15 @@ export default function WalletScreen(props: {
 
                 <button 
                   onClick={handleConfirmTransfer}
-                  className="w-full py-4 bg-neon-gold text-black font-black uppercase tracking-widest rounded-xl hover:brightness-110 transition active:scale-[0.98] flex items-center justify-center gap-2 mt-2"
+                  disabled={isSubmitting || !depositAmount}
+                  className="w-full py-4 bg-neon-gold text-black font-black uppercase tracking-widest rounded-xl hover:brightness-110 transition active:scale-[0.98] flex items-center justify-center gap-2 mt-2 disabled:opacity-50"
                 >
-                  <MessageSquare size={18} />
-                  Confirm Transfer via Bot
+                  {isSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <MessageSquare size={18} />
+                  )}
+                  {isSubmitting ? 'Processing...' : 'Confirm Transfer via Bot'}
                 </button>
 
                 <p className="text-[9px] text-center text-gray-500 font-mono italic">
@@ -437,22 +509,5 @@ export default function WalletScreen(props: {
         )}
       </AnimatePresence>
     </div>
-  );
-}
-
-function XIcon({ className }: { className?: string }) {
-  return (
-    <svg 
-      className={className} 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2.5" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    >
-      <line x1="18" y1="6" x2="6" y2="18"></line>
-      <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
   );
 }
