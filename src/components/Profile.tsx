@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Bell, ChevronRight, Copy, Crown, History, LifeBuoy, Settings, Star } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Copy, Crown, History, MessageSquare, Settings, Star } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 function tryCopy(text: string): Promise<boolean> {
@@ -27,6 +27,21 @@ function tryCopy(text: string): Promise<boolean> {
   } catch {
     return Promise.resolve(false);
   }
+}
+
+function openTelegramUrl(url: string) {
+  const u = String(url || '').trim();
+  if (!u) return;
+  const tg = (window as any).Telegram?.WebApp;
+  try {
+    if (typeof tg?.openTelegramLink === 'function') {
+      tg.openTelegramLink(u);
+      return;
+    }
+  } catch {
+    // ignore
+  }
+  window.open(u, '_blank');
 }
 
 export default function Profile(props: {
@@ -59,8 +74,8 @@ export default function Profile(props: {
     onBack,
     showBack = true,
     showAlert,
-    onOpenVip,
-    onOpenSupport,
+    onOpenVip: _onOpenVip,
+    onOpenSupport: _onOpenSupport,
     onOpenWallet,
     onOpenRecharge,
     onOpenSettings,
@@ -177,8 +192,8 @@ export default function Profile(props: {
     {
       key: 'support',
       label: 'Support',
-      Icon: LifeBuoy,
-      onClick: () => onOpenSupport?.(),
+      Icon: MessageSquare,
+      onClick: () => openTelegramUrl('https://t.me/oddsflow_cs_bot'),
     },
   ] as const;
 
@@ -249,8 +264,8 @@ export default function Profile(props: {
             </div>
 
             <button
-              onClick={() => onOpenVip?.() ?? showAlert('VIP page not configured yet.')}
-              className={`${pillBtnCls} flex items-center gap-2 shrink-0`}
+              onClick={() => openTelegramUrl('https://t.me/oddsflow_manager_bot')}
+              className={`${pillBtnCls} flex items-center gap-2 shrink-0 active:scale-95`}
             >
               <Crown size={14} />
               VIP

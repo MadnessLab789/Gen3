@@ -743,7 +743,7 @@ function App() {
                       )}
                         {match.status !== 'LIVE' && match.time && (
                           <span className="text-xs text-gray-400 font-mono">{match.time}</span>
-                        )}
+                      )}
                     </div>
                     </div>
                     <button
@@ -962,8 +962,6 @@ function App() {
         <Support
           onBack={() => setCurrentView('me')}
           showAlert={showTelegramAlert}
-          onOpenTelegramSupport={() => window.open('https://t.me/oddsflow', '_blank')}
-          onOpenTelegramVip={() => window.open('https://t.me/oddsflowvip', '_blank')}
         />
       )}
 

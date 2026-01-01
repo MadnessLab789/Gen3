@@ -1,12 +1,25 @@
 import { ArrowLeft, LifeBuoy, MessageCircle, ShieldAlert } from 'lucide-react';
 
+function openTelegramUrl(url: string) {
+  const u = String(url || '').trim();
+  if (!u) return;
+  const tg = (window as any).Telegram?.WebApp;
+  try {
+    if (typeof tg?.openTelegramLink === 'function') {
+      tg.openTelegramLink(u);
+      return;
+    }
+  } catch {
+    // ignore
+  }
+  window.open(u, '_blank');
+}
+
 export default function Support(props: {
   onBack: () => void;
-  onOpenTelegramVip?: () => void;
-  onOpenTelegramSupport?: () => void;
   showAlert: (message: string) => void;
 }) {
-  const { onBack, onOpenTelegramSupport, onOpenTelegramVip, showAlert } = props;
+  const { onBack, showAlert: _showAlert } = props;
 
   return (
     <div className="min-h-screen bg-background text-white pb-[88px] px-4 pt-6 max-w-md mx-auto relative font-sans">
@@ -32,15 +45,15 @@ export default function Support(props: {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
             <button
-              onClick={() => onOpenTelegramSupport?.() ?? showAlert('Support channel not configured yet.')}
-              className="bg-surface-highlight border border-white/10 rounded-lg px-3 py-3 text-xs font-mono hover:border-neon-gold/40 transition-all flex items-center justify-center gap-2"
+              onClick={() => openTelegramUrl('https://t.me/oddsflow_cs_bot')}
+              className="bg-surface-highlight border border-white/10 rounded-lg px-3 py-3 text-xs font-mono hover:border-neon-gold/40 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               <MessageCircle size={14} />
               Telegram Support
             </button>
             <button
-              onClick={() => onOpenTelegramVip?.() ?? showAlert('VIP channel not configured yet.')}
-              className="bg-surface-highlight border border-white/10 rounded-lg px-3 py-3 text-xs font-mono hover:border-neon-gold/40 transition-all flex items-center justify-center gap-2"
+              onClick={() => openTelegramUrl('https://t.me/oddsflow_manager_bot')}
+              className="bg-surface-highlight border border-white/10 rounded-lg px-3 py-3 text-xs font-mono hover:border-neon-gold/40 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               <ShieldAlert size={14} />
               VIP / Upgrade

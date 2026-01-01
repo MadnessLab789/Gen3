@@ -283,9 +283,15 @@ export default function SettingsScreen(props: {
                 ];
 
                 try {
+                  // Explicitly remove known app keys
+                  localStorage.removeItem('oddsflow_favorite_games');
+                  localStorage.removeItem('oddsflow_favorite_leagues');
+
+                  // Remove all oddsflow_* keys except protected auth tokens
                   Object.keys(localStorage).forEach((key) => {
                     const isProtected = protectedKeys.some((p) => key.includes(p));
-                    if (!isProtected) localStorage.removeItem(key);
+                    if (isProtected) return;
+                    if (key.startsWith('oddsflow_')) localStorage.removeItem(key);
                   });
                 } catch {
                   // ignore
