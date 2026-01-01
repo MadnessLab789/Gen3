@@ -85,6 +85,19 @@ export default function SettingsScreen(props: {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, []);
 
+  const formatNationality = (raw: string) => {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    // If stored as ISO code
+    if (v.length === 2) {
+      const found = countryList.find((c) => c.code === v.toUpperCase());
+      return found ? `${found.flag} ${found.name} (${found.code})` : v.toUpperCase();
+    }
+    // If stored as country name
+    const foundByName = countryList.find((c) => c.name.toLowerCase() === v.toLowerCase());
+    return foundByName ? `${foundByName.flag} ${foundByName.name} (${foundByName.code})` : v;
+  };
+
   const filteredCountries = useMemo(() => {
     const q = countryQuery.trim().toLowerCase();
     if (!q) return countryList.slice(0, 80);
@@ -145,7 +158,8 @@ export default function SettingsScreen(props: {
     if (prefs.nationality && prefs.nationality.trim()) return;
 
     try {
-      if (localStorage.getItem('oddsflow_geoip_preset_done') === '1') return;
+      const done = localStorage.getItem('oddsflow_geoip_preset_done');
+      if (done === '1' || done === 'true') return;
     } catch {
       // ignore
     }
@@ -160,10 +174,13 @@ export default function SettingsScreen(props: {
         if (!code || code.length !== 2) return;
         if (cancelled) return;
 
-        setPrefs((p) => ({ ...p, nationality: p.nationality ? p.nationality : code }));
+        const found = countryList.find((c) => c.code === code);
+        // Store as country name (per product requirement). Save to Supabase only on SAVE.
+        const nextNationality = found?.name ?? code;
+        setPrefs((p) => ({ ...p, nationality: p.nationality ? p.nationality : nextNationality }));
         setCountryQuery('');
         try {
-          localStorage.setItem('oddsflow_geoip_preset_done', '1');
+          localStorage.setItem('oddsflow_geoip_preset_done', 'true');
         } catch {
           // ignore
         }
@@ -175,7 +192,7 @@ export default function SettingsScreen(props: {
     return () => {
       cancelled = true;
     };
-  }, [sb, telegramId, prefs.nationality, nationalityTouched]);
+  }, [sb, telegramId, prefs.nationality, nationalityTouched, countryList]);
 
   const toggleLeague = (name: string) => {
     setPrefs((prev) => {
@@ -268,12 +285,7 @@ export default function SettingsScreen(props: {
                   className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-sm text-white flex items-center justify-between hover:brightness-110 transition"
                 >
                   <span className="font-data">
-                    {prefs.nationality
-                      ? (() => {
-                          const found = countryList.find((c) => c.code === prefs.nationality.toUpperCase());
-                          return found ? `${found.flag} ${found.name} (${found.code})` : prefs.nationality;
-                        })()
-                      : 'Select…'}
+                    {prefs.nationality ? formatNationality(prefs.nationality) : 'Select…'}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-500" />
                 </button>
@@ -297,7 +309,8 @@ export default function SettingsScreen(props: {
                         <button
                           key={c.code}
                           onClick={() => {
-                            setPrefs((p) => ({ ...p, nationality: c.code }));
+                            // Store country name in state/db (per requirement)
+                            setPrefs((p) => ({ ...p, nationality: c.name }));
                             setNationalityTouched(true);
                             setCountryOpen(false);
                             setCountryQuery('');
@@ -389,7 +402,7 @@ export default function SettingsScreen(props: {
               <div className="text-[11px] text-gray-500 font-mono">{appVersion}</div>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const protectedKeys = [
                   // Supabase / Auth tokens (keep login)
                   'supabase.auth.token',
@@ -422,7 +435,42 @@ export default function SettingsScreen(props: {
                 setCountryOpen(false);
                 setHideBalance(false);
                 setIncognito(false);
-                showAlert('Local cache cleared. UI reset.');
+
+                // Optional: also reset cloud settings in Supabase
+                const tg = (window as any).Telegram?.WebApp;
+                const confirmReset =
+                  typeof tg?.showConfirm === 'function'
+                    ? await new Promise<boolean>((resolve) => tg.showConfirm('Reset cloud settings too?', resolve))
+                    : window.confirm('Reset cloud settings too?');
+
+                if (confirmReset && sb && Number.isFinite(telegramId) && telegramId > 0) {
+                  // Try update with both favorite_leagues + favorite_games to fit different schemas.
+                  const payloadAll: any = {
+                    nationality: null,
+                    favorite_leagues: [],
+                    favorite_games: [],
+                  };
+
+                  let res = await sb.from('users').update(payloadAll).eq('telegram_id', telegramId);
+
+                  // Fallback if users table doesn't use telegram_id as key
+                  if (res.error && String(res.error.message || '').toLowerCase().includes('column') && String(res.error.message || '').toLowerCase().includes('telegram_id')) {
+                    res = await sb.from('users').update(payloadAll).eq('id', telegramId as any);
+                  }
+
+                  // If favorite_games column missing, retry without it
+                  if (res.error && String(res.error.message || '').toLowerCase().includes('favorite_games')) {
+                    const payload = { nationality: null, favorite_leagues: [] };
+                    const r2 = await sb.from('users').update(payload as any).eq('telegram_id', telegramId);
+                    if (r2.error) {
+                      console.warn('[Settings] cloud reset failed:', r2.error);
+                    }
+                  } else if (res.error) {
+                    console.warn('[Settings] cloud reset failed:', res.error);
+                  }
+                }
+
+                showAlert('Local cache cleared. UI reset. Cloud preferences will sync on next refresh.');
               }}
               className="h-9 px-4 rounded-xl text-xs font-black bg-white/5 border border-white/10 hover:brightness-110 transition flex items-center gap-2"
             >
