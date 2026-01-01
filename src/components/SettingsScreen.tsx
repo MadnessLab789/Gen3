@@ -273,15 +273,29 @@ export default function SettingsScreen(props: {
             </div>
             <button
               onClick={() => {
+                const protectedKeys = [
+                  // Supabase / Auth tokens (keep login)
+                  'supabase.auth.token',
+                  'sb-access-token',
+                  'sb-refresh-token',
+                  'auth-token',
+                  'sb-',
+                ];
+
                 try {
-                  localStorage.removeItem('oddsflow_hide_balance');
-                  localStorage.removeItem('oddsflow_incognito_mode');
+                  Object.keys(localStorage).forEach((key) => {
+                    const isProtected = protectedKeys.some((p) => key.includes(p));
+                    if (!isProtected) localStorage.removeItem(key);
+                  });
                 } catch {
                   // ignore
                 }
+
+                // Force reset in-memory state (even if DB persists preferences)
+                setPrefs({ nationality: '', favoriteLeagues: [] });
                 setHideBalance(false);
                 setIncognito(false);
-                showAlert('Cache cleared.');
+                showAlert('Cache cleared successfully!');
               }}
               className="h-9 px-4 rounded-xl text-xs font-black bg-white/5 border border-white/10 hover:brightness-110 transition flex items-center gap-2"
             >
