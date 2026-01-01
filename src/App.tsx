@@ -934,6 +934,7 @@ function App() {
           onBalanceClick={() => setShowWallet(true)}
           showAlert={showTelegramAlert}
           hideBalance={hideBalance}
+          telegramId={user?.telegram_id ?? user?.id ?? 0}
         />
       )}
 
