@@ -102,6 +102,10 @@ export default function SettingsScreen(props: {
     'Ligue 1',
   ];
 
+  // Explicit setters (so Clear Cache can reset UI immediately with clear intent)
+  const setNationality = (v: string) => setPrefs((p) => ({ ...p, nationality: v }));
+  const setFavoriteLeagues = (v: string[]) => setPrefs((p) => ({ ...p, favoriteLeagues: v }));
+
   useEffect(() => {
     if (!sb) return;
     if (!Number.isFinite(telegramId) || telegramId <= 0) return;
@@ -412,12 +416,13 @@ export default function SettingsScreen(props: {
                 }
 
                 // Force reset in-memory state (even if DB persists preferences)
-                setPrefs({ nationality: '', favoriteLeagues: [] });
+                setNationality('');
+                setFavoriteLeagues([]);
                 setCountryQuery('');
                 setCountryOpen(false);
                 setHideBalance(false);
                 setIncognito(false);
-                showAlert('Local cache cleared. Cloud preferences will sync on next refresh.');
+                showAlert('Local cache cleared. UI reset.');
               }}
               className="h-9 px-4 rounded-xl text-xs font-black bg-white/5 border border-white/10 hover:brightness-110 transition flex items-center gap-2"
             >
