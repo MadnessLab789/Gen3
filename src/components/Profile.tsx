@@ -193,7 +193,7 @@ export default function Profile(props: {
       key: 'support',
       label: 'Support',
       Icon: MessageSquare,
-      onClick: () => openTelegramUrl('https://t.me/oddsflow_cs_bot'),
+      onClick: () => _onOpenSupport?.(),
     },
   ] as const;
 
