@@ -703,12 +703,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         };
 
         const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
-          // HDP (Handicap) table - Direct query with strict fixture_id filter
-          queryTable('handicap', currentFixtureIdFromUrl),
+          // HDP (Handicap) table - try multiple names
+          tryTableQuery(['handicap', 'Handicap'], currentFixtureIdFromUrl),
           // O/U (Over/Under) table - Try 'OverUnder' first, fallback to 'over_under'
           tryTableQuery(['OverUnder', 'over_under'], currentFixtureIdFromUrl),
-          // 1X2 (Money Line) table — include quoted variant per requirement
-          tryTableQuery(['money line', '"money line"', 'moneyline'], currentFixtureIdFromUrl),
+          // 1X2 (Money Line) table — include exact name from prompt
+          tryTableQuery(['moneyline 1x2', 'money line', 'moneyline'], currentFixtureIdFromUrl),
         ]);
 
         // Nuclear: request identity guard (prevents old request overwriting new match)
@@ -868,38 +868,29 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       setIsLoadingAnalysis(false);
     }
 
-    // Realtime subscription: Listen for INSERT and UPDATE events on all three tables
+    // Realtime subscription: Listen for INSERT and UPDATE events on all relevant tables
     // CRITICAL: Must validate payload.new.fixture_id in callback to prevent cross-match updates
     const channels = [
       // HDP (Handicap) table subscription
       sb
+        .channel(`warroom-hdp-${thisRequestFixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'Handicap',
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
+        }, () => void fetchWarRoomAnalysis())
+        .subscribe(),
+      sb
         .channel(`warroom-handicap-${thisRequestFixtureId}`)
         .on('postgres_changes', {
-          event: '*', // Listen to both INSERT and UPDATE
+          event: '*',
           schema: 'public',
           table: 'handicap',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`, // CRITICAL: Use numeric fixtureId in filter
-        }, (payload) => {
-          // CRITICAL: Validate fixture_id in payload before processing
-          const payloadData = payload.new as any;
-          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (
-            payloadFixtureId === thisRequestFixtureId &&
-            activeFixtureIdRef.current === thisRequestFixtureId &&
-            !isCancelled
-          ) {
-            console.log('[WarRoom] Realtime update received for handicap, fixture_id matches');
-            void fetchWarRoomAnalysis();
-          } else {
-            console.warn('[WarRoom] Realtime update rejected - fixture_id mismatch or cancelled', {
-              payloadFixtureId,
-              currentFixtureId: thisRequestFixtureId,
-              isCancelled,
-            });
-          }
-        })
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
+        }, () => void fetchWarRoomAnalysis())
         .subscribe(),
-      // O/U (Over/Under) table subscription - try both table names
+      // O/U (Over/Under) table subscription
       sb
         .channel(`warroom-overunder-${thisRequestFixtureId}`)
         .on('postgres_changes', {
@@ -907,17 +898,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           schema: 'public',
           table: 'OverUnder',
           filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, (payload) => {
-          const payloadData = payload.new as any;
-          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (
-            payloadFixtureId === thisRequestFixtureId &&
-            activeFixtureIdRef.current === thisRequestFixtureId &&
-            !isCancelled
-          ) {
-            void fetchWarRoomAnalysis();
-          }
-        })
+        }, () => void fetchWarRoomAnalysis())
         .subscribe(),
       sb
         .channel(`warroom-over_under-${thisRequestFixtureId}`)
@@ -926,19 +907,18 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           schema: 'public',
           table: 'over_under',
           filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, (payload) => {
-          const payloadData = payload.new as any;
-          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (
-            payloadFixtureId === thisRequestFixtureId &&
-            activeFixtureIdRef.current === thisRequestFixtureId &&
-            !isCancelled
-          ) {
-            void fetchWarRoomAnalysis();
-          }
-        })
+        }, () => void fetchWarRoomAnalysis())
         .subscribe(),
-      // 1X2 (Money Line) table subscription - try both table names
+      // 1X2 (Money Line) table subscription
+      sb
+        .channel(`warroom-ml-1x2-${thisRequestFixtureId}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'moneyline 1x2',
+          filter: `fixture_id=eq.${thisRequestFixtureId}`,
+        }, () => void fetchWarRoomAnalysis())
+        .subscribe(),
       sb
         .channel(`warroom-moneyline-${thisRequestFixtureId}`)
         .on('postgres_changes', {
@@ -946,17 +926,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           schema: 'public',
           table: 'money line',
           filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, (payload) => {
-          const payloadData = payload.new as any;
-          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (
-            payloadFixtureId === thisRequestFixtureId &&
-            activeFixtureIdRef.current === thisRequestFixtureId &&
-            !isCancelled
-          ) {
-            void fetchWarRoomAnalysis();
-          }
-        })
+        }, () => void fetchWarRoomAnalysis())
         .subscribe(),
       sb
         .channel(`warroom-moneyline-alt-${thisRequestFixtureId}`)
@@ -965,17 +935,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           schema: 'public',
           table: 'moneyline',
           filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, (payload) => {
-          const payloadData = payload.new as any;
-          const payloadFixtureId = Number(payloadData?.fixture_id || payloadData?.id);
-          if (
-            payloadFixtureId === thisRequestFixtureId &&
-            activeFixtureIdRef.current === thisRequestFixtureId &&
-            !isCancelled
-          ) {
-            void fetchWarRoomAnalysis();
-          }
-        })
+        }, () => void fetchWarRoomAnalysis())
         .subscribe(),
     ];
 
