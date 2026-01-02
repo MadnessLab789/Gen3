@@ -7,20 +7,41 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#0f0518',
-        surface: '#1F1135',
-        'surface-highlight': '#2A1B45',
+        // 深度重定义：从紫色转向更专业的黑金调
+        background: '#0A0A0A', // 纯粹的深黑背景
+        surface: {
+          DEFAULT: '#161616',  // 基础卡片颜色
+          light: '#1F1F1F',    // 悬浮或高亮卡片
+          accent: '#262626',   // 边框或分割线
+        },
         neon: {
-          gold: '#FFC200',
-          green: '#00FF9D',
-          purple: '#8B5CF6',
-          red: '#FF3B30',
-          blue: '#3B82F6'
+          gold: '#FFD700',       // 标准霓虹金
+          'gold-muted': '#E2B05E', // 用于长文本的低饱和金，不刺眼
+          green: '#4ADE80',      // 柔和的成功绿 (VIP Active)
+          red: '#FF453A',        // 报错红
+          blue: '#0A84FF',       // 链接蓝
         }
       },
       fontFamily: {
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+        // UI 字体：追求简洁干净
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        // 数据字体：强制等宽，确保赔率、金额、ID 对齐不抖动
+        mono: ['"JetBrains Mono"', '"Roboto Mono"', 'ui-monospace', 'monospace'],
       },
+      backgroundImage: {
+        // 进阶建议中的金光流动渐变
+        'gold-card': 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0) 50%, rgba(255,215,0,0.05) 100%)',
+        'dark-gradient': 'linear-gradient(to bottom, #161616, #0A0A0A)',
+      },
+      boxShadow: {
+        // 增加一个极细微的金色发光效果
+        'gold-glow': '0 0 15px -3px rgba(255, 215, 0, 0.2)',
+        'inner-light': 'inset 0 1px 0 0 rgba(255, 255, 255, 0.05)',
+      },
+      letterSpacing: {
+        tightest: '-.075em',
+        widest: '.2em',
+      }
     },
   },
   plugins: [],
