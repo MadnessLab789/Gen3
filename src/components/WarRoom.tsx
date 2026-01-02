@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase, oddsSupabase } from '../supabaseClient';
+import { oddsSupabase } from '../supabaseClient';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
