@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check, Activity } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../supabaseClient';
+import { supabase, oddsSupabase } from '../supabaseClient';
 import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
@@ -613,9 +613,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
   // Fetch analysis data from three Supabase tables (HDP, O/U, 1X2)
   // This runs for both LIVE and PRE_MATCH matches
   useEffect(() => {
-    const sb = supabase;
+    const sb = oddsSupabase;
     if (!sb) {
-      console.warn('[WarRoom] Supabase client not available');
+      console.warn('[WarRoom] Odds Supabase client not available');
       return;
     }
 

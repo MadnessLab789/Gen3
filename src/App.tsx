@@ -12,7 +12,7 @@ import RadarScreen from './components/RadarScreen';
 import WalletScreen from './components/WalletScreen';
 import RechargeModal from './components/RechargeModal';
 import SettingsScreen from './components/SettingsScreen';
-import { supabase } from './supabaseClient';
+import { supabase, oddsSupabase } from './supabaseClient';
 
 declare global {
   interface Window {
@@ -134,9 +134,9 @@ const transformPrematchToMatch = (pm: any): Match => {
 
 // --- Fetch matches from Supabase prematches table ---
 const fetchMatchesFromSupabase = async (): Promise<Match[]> => {
-  const sb = supabase;
+  const sb = oddsSupabase;
   if (!sb) {
-    console.warn('[App] Supabase client not available');
+    console.warn('[App] Odds Supabase client not available');
     return [];
   }
 
@@ -227,9 +227,9 @@ function App() {
 
   // --- Fetch matches from Supabase prematches table on mount ---
   useEffect(() => {
-    const sb = supabase;
+    const sb = oddsSupabase;
     if (!sb) {
-      console.warn('[App] Supabase client not available, skipping matches fetch');
+      console.warn('[App] Odds Supabase client not available, skipping matches fetch');
       return;
     }
 

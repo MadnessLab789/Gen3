@@ -1,8 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-// IMPORTANT:
-// Use `import.meta.env.VITE_*` directly so Vite can statically replace env vars at build time.
-// Avoid `(import.meta as any).env` which can prevent replacement and break in some WebViews.
+// --- MAIN SUPABASE (Users, Transactions, Chat) ---
 const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? undefined;
 const SUPABASE_ANON_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? undefined;
 
@@ -13,7 +11,25 @@ export const supabase: SupabaseClient | null =
   SUPABASE_ANON_KEY.length > 0
     ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         global: {
-          // Nuclear: avoid any browser/network caching layers for REST calls
+          fetch: (input, init) => {
+            return fetch(input, { ...(init ?? {}), cache: 'no-store' });
+          },
+        },
+      })
+    : null;
+
+// --- ODDS SUPABASE (Prematches, Handicap, OverUnder, Moneyline) ---
+// Using NEXT_PUBLIC_* as requested, falling back to VITE_* for Vite compatibility if needed
+const ODDS_URL = (import.meta.env.NEXT_PUBLIC_ODDS_SUPABASE_URL as string | undefined) || (import.meta.env.VITE_ODDS_SUPABASE_URL as string | undefined);
+const ODDS_KEY = (import.meta.env.NEXT_PUBLIC_ODDS_SUPABASE_KEY as string | undefined) || (import.meta.env.VITE_ODDS_SUPABASE_KEY as string | undefined);
+
+export const oddsSupabase: SupabaseClient | null =
+  typeof ODDS_URL === 'string' &&
+  ODDS_URL.length > 0 &&
+  typeof ODDS_KEY === 'string' &&
+  ODDS_KEY.length > 0
+    ? createClient(ODDS_URL, ODDS_KEY, {
+        global: {
           fetch: (input, init) => {
             return fetch(input, { ...(init ?? {}), cache: 'no-store' });
           },
@@ -22,15 +38,5 @@ export const supabase: SupabaseClient | null =
     : null;
 
 // ⚠️ IMPORTANT REMINDERS:
-// 1. Null Safety: Always check `if (!supabase) return;` before using the client
-//    Example: const sb = supabase; if (!sb) return;
-//
-// 2. Realtime Setup:
-//    - Go to Supabase Dashboard > Database > Replication
-//    - Enable "Realtime" for `global_messages` and `war_room_messages`
-//    - Without this, frontend listeners won't receive INSERT events
-//
-// 3. Performance: Initial message loading is limited to 50 messages (HISTORY_LIMIT)
-//    Messages are sorted by created_at DESC to show newest first
-
-
+// 1. Null Safety: Always check `if (!supabase) return;` or `if (!oddsSupabase) return;`
+// 2. Replication: Ensure "Realtime" is enabled for relevant tables in BOTH databases.
