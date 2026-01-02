@@ -109,7 +109,7 @@ const transformPrematchToMatch = (pm: any): Match => {
   const timeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   
   return {
-    id: pm.fixture_id || pm.id || 0, // Use fixture_id as primary identifier
+    id: pm.id || pm.fixture_id || 0, // Prefer id for the new database structure
     league: pm.league_name || 'Unknown League',
     home: pm.home_name || 'Home',
     away: pm.away_name || 'Away',
@@ -271,8 +271,9 @@ function App() {
           
           setMatches((prev) =>
             prev.map((m) => {
-              // Match by fixture_id (which is stored as id in Match interface)
-              if (m.id === updatedPrematch.fixture_id || m.id === updatedPrematch.id) {
+              // Match by id or fixture_id
+              const matchId = updatedPrematch.id || updatedPrematch.fixture_id;
+              if (m.id === matchId) {
                 return mergedUpdatedMatch;
               }
               return m;
