@@ -669,10 +669,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             }
 
             const result = await sb
-              // NOTE: PostgREST expects raw table names; we also try quoted variant via tryTableQuery list.
               .from(tableName)
               .select('*')
-              .eq('fixture_id', numericFixtureId) // CRITICAL: Strict fixture_id filter with numeric type
+              .or(`fixture_id.eq.${numericFixtureId},id.eq.${numericFixtureId}`) // Try both columns
               .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
@@ -772,8 +771,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           const ouSignals: SignalItem[] = [];
           const oneXtwoSignals: SignalItem[] = [];
 
-          // Transform HDP (Handicap) data - ONLY from handicap table
-          if (validatedHdp && validatedHdp.signal && !validatedHdp.signal.includes('观望') && !validatedHdp.signal.includes('持仓')) {
+        // Transform HDP (Handicap) data - ONLY from handicap table
+          if (validatedHdp) {
+            const hasRealSignal = validatedHdp.signal && !validatedHdp.signal.includes('观望') && !validatedHdp.signal.includes('持仓');
             hdpSignals.push({
               id: 1,
               type: 'sniper',
@@ -787,12 +787,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               market: validatedHdp.selection || `Line ${validatedHdp.line || 'N/A'}`,
               odds: parseFloat(validatedHdp.home_odds || validatedHdp.away_odds || '1.88') || 1.88,
               unit: '+1',
-              statusText: 'Active 🎯'
+              statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
+              guruComment: validatedHdp.signal || 'System analyzing handicap movement...'
             });
           }
 
           // Transform O/U (Over/Under) data - ONLY from OverUnder table
-          if (validatedOu && validatedOu.signal && !validatedOu.signal.includes('观望') && !validatedOu.signal.includes('持仓')) {
+          if (validatedOu) {
+            const hasRealSignal = validatedOu.signal && !validatedOu.signal.includes('观望') && !validatedOu.signal.includes('持仓');
             ouSignals.push({
               id: 1,
               type: 'sniper',
@@ -806,12 +808,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               market: `Over ${validatedOu.line || 'N/A'}`,
               odds: parseFloat(validatedOu.over || '1.88') || 1.88,
               unit: '+1',
-              statusText: 'Active 🎯'
+              statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
+              guruComment: validatedOu.signal || 'Analyzing goal expectancy...'
             });
           }
 
           // Transform 1X2 (Money Line) data - ONLY from money line table
-          if (validatedMoneyLine && validatedMoneyLine.signal && !validatedMoneyLine.signal.includes('观望')) {
+          if (validatedMoneyLine) {
+            const hasRealSignal = validatedMoneyLine.signal && !validatedMoneyLine.signal.includes('观望');
             oneXtwoSignals.push({
               id: 1,
               type: 'sniper',
@@ -822,10 +826,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               status: 'LIVE',
               timestamp: validatedMoneyLine.clock ? `${validatedMoneyLine.clock}'` : '0\'',
               title: `${validatedMoneyLine.home_name || match.home} vs ${validatedMoneyLine.away_name || match.away}`,
-              market: validatedMoneyLine.selection || 'Home Win',
+              market: validatedMoneyLine.selection || 'Market Update',
               odds: parseFloat(validatedMoneyLine.moneyline_1x2_home || validatedMoneyLine.moneyline_1x2_away || '2.0') || 2.0,
               unit: '+1',
-              statusText: 'Active 🎯'
+              statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
+              guruComment: validatedMoneyLine.signal || 'Tracking 1x2 price action...'
             });
           }
 
@@ -878,8 +883,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'Handicap',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       sb
         .channel(`warroom-handicap-${thisRequestFixtureId}`)
@@ -887,8 +895,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'handicap',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       // O/U (Over/Under) table subscription
       sb
@@ -897,8 +908,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'OverUnder',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       sb
         .channel(`warroom-over_under-${thisRequestFixtureId}`)
@@ -906,8 +920,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'over_under',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       // 1X2 (Money Line) table subscription
       sb
@@ -916,8 +933,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'moneyline 1x2',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       sb
         .channel(`warroom-moneyline-${thisRequestFixtureId}`)
@@ -925,8 +945,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'money line',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
       sb
         .channel(`warroom-moneyline-alt-${thisRequestFixtureId}`)
@@ -934,8 +957,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           event: '*',
           schema: 'public',
           table: 'moneyline',
-          filter: `fixture_id=eq.${thisRequestFixtureId}`,
-        }, () => void fetchWarRoomAnalysis())
+        }, (payload) => {
+          const payloadData = payload.new as any;
+          const pid = Number(payloadData?.fixture_id || payloadData?.id);
+          if (pid === thisRequestFixtureId) void fetchWarRoomAnalysis();
+        })
         .subscribe(),
     ];
 

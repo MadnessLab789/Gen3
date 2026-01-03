@@ -109,7 +109,7 @@ const transformPrematchToMatch = (pm: any): Match => {
   const timeStr = startDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
   
   return {
-    id: pm.id || pm.fixture_id || 0, // Prefer id for the new database structure
+    id: pm.fixture_id || pm.id || 0, // Prioritize fixture_id for cross-table linking
     league: pm.league_name || 'Unknown League',
     home: pm.home_name || 'Home',
     away: pm.away_name || 'Away',
