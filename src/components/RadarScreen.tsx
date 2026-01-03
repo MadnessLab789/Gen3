@@ -74,11 +74,29 @@ export default function RadarScreen(props: {
 
     const fetchMatchAnalysis = async (fixtureId: number) => {
       try {
-        const [matchRes, hdpRes, ouRes, mlRes] = await Promise.all([
-          osb.from('prematches').select('*').eq('id', fixtureId).maybeSingle(),
-          osb.from('handicap').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-          osb.from('OverUnder').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-          osb.from('moneyline 1x2').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        const queryTable = async (tableName: string, fid: number) => {
+          return osb
+            .from(tableName)
+            .select('*')
+            .or(`fixture_id.eq.${fid},id.eq.${fid}`)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+        };
+
+        const tryTableQuery = async (tableNames: string[], fid: number) => {
+          for (const tableName of tableNames) {
+            const { data } = await queryTable(tableName, fid);
+            if (data) return data;
+          }
+          return null;
+        };
+
+        const [matchRes, hdpData, ouData, mlData] = await Promise.all([
+          osb.from('prematches').select('*').or(`id.eq.${fixtureId},fixture_id.eq.${fixtureId}`).maybeSingle(),
+          tryTableQuery(['handicap', 'Handicap'], fixtureId),
+          tryTableQuery(['OverUnder', 'over_under'], fixtureId),
+          tryTableQuery(['moneyline 1x2', 'money line', 'moneyline'], fixtureId),
         ]);
 
         if (matchRes.data) {
@@ -87,9 +105,9 @@ export default function RadarScreen(props: {
             [fixtureId]: {
               fixture_id: fixtureId,
               matchInfo: matchRes.data,
-              hdp: hdpRes.data,
-              ou: ouRes.data,
-              oneXtwo: mlRes.data,
+              hdp: hdpData,
+              ou: ouData,
+              oneXtwo: mlData,
               lastUpdate: Date.now()
             }
           }));
@@ -106,13 +124,45 @@ export default function RadarScreen(props: {
     });
 
     // Subscriptions for each fixture
-    const channels = watchlistIds.map(id => {
-      return osb.channel(`radar-fixture-${id}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'prematches', filter: `id=eq.${id}` }, () => fetchMatchAnalysis(id))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'handicap', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'OverUnder', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline 1x2', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
+    const channels: any[] = [];
+    
+    watchlistIds.forEach(id => {
+      const channel = osb.channel(`radar-fixture-${id}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'prematches' }, (p) => {
+          const pid = Number(p.new?.id || p.new?.fixture_id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'handicap' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'Handicap' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'OverUnder' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'over_under' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline 1x2' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'money line' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline' }, (p) => {
+          const pid = Number(p.new?.fixture_id || p.new?.id);
+          if (pid === id) fetchMatchAnalysis(id);
+        })
         .subscribe();
+      
+      channels.push(channel);
     });
 
     return () => {
