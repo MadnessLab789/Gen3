@@ -69,6 +69,15 @@ interface SignalItem {
   market_analysis_trend_direction?: string;
   market_analysis_odds_check?: string;
   commentary_malaysia?: string;
+  // New fields for history table
+  selection?: string;
+  line?: string;
+  home_odds?: number;
+  away_odds?: number;
+  draw_odds?: number;
+  bookmaker?: string;
+  vig_status?: string;
+  clock?: string;
 }
 
 // Nuclear: remove ALL PRE_MATCH mock/seed signals to prevent any hardcoded team names leaking into UI.
@@ -225,6 +234,132 @@ export default function WarRoom({
   const [settlementResult, setSettlementResult] = useState<'WON' | 'LOST' | null>(null);
   const [winAmount, setWinAmount] = useState(0);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyCategory, setHistoryCategory] = useState<'1x2' | 'hdp' | 'ou'>('hdp');
+  const [historicalData, setHistoryData] = useState<Record<'1x2' | 'hdp' | 'ou', any[]>>({
+    '1x2': [],
+    hdp: [],
+    ou: [],
+  });
+
+  // Signal History Modal Component
+  const SignalHistoryModal = ({ 
+    category, 
+    data, 
+    onClose 
+  }: { 
+    category: string; 
+    data: any[]; 
+    onClose: () => void 
+  }) => (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.7 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="fixed inset-x-0 bottom-0 z-[111] bg-[#0A0A0A] border-t border-white/10 rounded-t-3xl shadow-2xl h-[85vh] overflow-hidden flex flex-col"
+      >
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+          <div>
+            <h3 className="text-xl font-black text-white">Signal History - {category.toUpperCase()}</h3>
+            <p className="text-[10px] text-gray-500 font-mono mt-1 tracking-widest uppercase">Verified Quantitative Logs</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/5 rounded-xl transition-colors"
+          >
+            <X className="w-6 h-6 text-white" />
+          </button>
+        </div>
+
+        {/* Table Container */}
+        <div className="flex-1 overflow-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead className="sticky top-0 bg-[#0A0A0A] z-10">
+              <tr className="border-b border-white/5">
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Clock</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Signal</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Selection</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Line</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{category === '1x2' ? 'Home' : 'Home'}</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{category === '1x2' ? 'Draw' : 'Away'}</th>
+                {category === '1x2' && <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Away</th>}
+                {category === 'ou' && <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Under</th>}
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Bookmaker</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Stacking</th>
+                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Vig Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {data.map((item, idx) => {
+                const signal = item.signal || '-';
+                const isWait = signal.toLowerCase().includes('wait');
+                const isHold = signal.toLowerCase().includes('hold');
+                const isStrong = signal.toLowerCase().includes('strong') || signal.toLowerCase().includes('back') || signal.toLowerCase().includes('recovery');
+                
+                return (
+                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-4 py-4 text-xs font-mono text-gray-400 group-hover:text-white">{item.clock || '0'}'</td>
+                    <td className="px-4 py-4">
+                      <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
+                        isStrong ? 'bg-orange-500/10 text-orange-500' :
+                        isHold ? 'bg-blue-500/10 text-blue-500' :
+                        isWait ? 'bg-neon-gold/10 text-neon-gold' :
+                        'bg-gray-500/10 text-gray-500'
+                      }`}>
+                        {isStrong && <span>🔥</span>}
+                        {isHold && <span>🔵</span>}
+                        {isWait && <span>🟡</span>}
+                        {signal}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-xs text-white font-medium">{item.selection || item.market || '-'}</td>
+                    <td className="px-4 py-4 text-xs font-mono text-neon-blue font-bold">{item.line || '-'}</td>
+                    
+                    {/* Odds columns vary by category */}
+                    <td className="px-4 py-4 text-xs font-mono text-gray-300">
+                      {category === 'ou' ? item.over : (item.home_odds || item.moneyline_1x2_home || '-')}
+                    </td>
+                    <td className="px-4 py-4 text-xs font-mono text-gray-300">
+                      {category === 'ou' ? item.under : (category === '1x2' ? (item.moneyline_1x2_draw || '-') : (item.away_odds || '-'))}
+                    </td>
+                    {category === '1x2' && (
+                      <td className="px-4 py-4 text-xs font-mono text-gray-300">{item.moneyline_1x2_away || '-'}</td>
+                    )}
+                    {category === 'ou' && (
+                      <td className="px-4 py-4 text-xs font-mono text-gray-300">{item.under || '-'}</td>
+                    )}
+
+                    <td className="px-4 py-4 text-[10px] text-gray-500 font-mono">{item.bookmaker || 'bet365'}</td>
+                    <td className="px-4 py-4">
+                      <div className="text-[10px] font-bold text-neon-gold uppercase">{item.stacking_quantity || '0 Unit'}</div>
+                      <div className="text-[9px] text-gray-500 italic mt-0.5 truncate max-w-[150px]">({item.stacking_plan_description || 'Observe'})</div>
+                    </td>
+                    <td className="px-4 py-4 text-[10px] font-mono text-gray-500">{item.vig_status || '-'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {data.length === 0 && (
+            <div className="py-20 text-center text-gray-500">
+              <div className="text-4xl mb-4 opacity-20">🗄️</div>
+              <p className="text-sm italic">No historical logs available for this fixture yet.</p>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </>
+  );
 
   // Reset entry gate whenever switching to a different match
   useEffect(() => {
@@ -793,7 +928,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       try {
         // Helper function to query table with strict fixture_id filtering
         // CRITICAL: No fallback to limit(1) without fixture_id match
-        const queryTable = async (tableName: string, fixtureIdNum: number) => {
+        const queryTable = async (tableName: string, fixtureIdNum: number, limitCount: number = 1) => {
           try {
             // CRITICAL: Ensure fixtureId is a number for Supabase query
             const numericFixtureId = Number(fixtureIdNum);
@@ -807,12 +942,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               .select('*')
               .or(`fixture_id.eq.${numericFixtureId},id.eq.${numericFixtureId}`) // Try both columns
               .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+              .limit(limitCount);
             
             // CRITICAL: Only return data if fixture_id matches AND component is still mounted
-            if (result.data && (result.data.fixture_id === numericFixtureId || result.data.id === numericFixtureId)) {
-              return result;
+            if (result.data && result.data.length > 0) {
+              const validated = result.data.filter(d => Number(d.fixture_id || d.id) === numericFixtureId);
+              return { data: limitCount === 1 ? validated[0] : validated, error: null };
             }
             // If fixture_id doesn't match, return null
             return { data: null, error: null };
@@ -823,9 +958,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         };
 
         // Try multiple table names for O/U and 1X2
-        const tryTableQuery = async (tableNames: string[], fixtureId: number) => {
+        const tryTableQuery = async (tableNames: string[], fixtureId: number, limitCount: number = 1) => {
           for (const tableName of tableNames) {
-            const result = await queryTable(tableName, fixtureId);
+            const result = await queryTable(tableName, fixtureId, limitCount);
             // If we got valid data with matching fixture_id, return it
             if (result.data) {
               return result;
@@ -835,14 +970,25 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           return { data: null, error: null };
         };
 
-        const [hdpResult, ouResult, moneyLineResult] = await Promise.all([
-          // HDP (Handicap) table - try multiple names
-          tryTableQuery(['handicap', 'Handicap'], currentFixtureIdFromUrl),
-          // O/U (Over/Under) table - Try 'OverUnder' first, fallback to 'over_under'
-          tryTableQuery(['OverUnder', 'over_under'], currentFixtureIdFromUrl),
-          // 1X2 (Money Line) table — include exact name from prompt
-          tryTableQuery(['moneyline 1x2', 'money line', 'moneyline'], currentFixtureIdFromUrl),
+        const [hdpResult, ouResult, moneyLineResult, hdpHistory, ouHistory, mlHistory] = await Promise.all([
+          // Latest single row for each
+          tryTableQuery(['handicap', 'Handicap'], currentFixtureIdFromUrl, 1),
+          tryTableQuery(['OverUnder', 'over_under'], currentFixtureIdFromUrl, 1),
+          tryTableQuery(['moneyline 1x2', 'money line', 'moneyline'], currentFixtureIdFromUrl, 1),
+          // History (last 30 rows)
+          tryTableQuery(['handicap', 'Handicap'], currentFixtureIdFromUrl, 30),
+          tryTableQuery(['OverUnder', 'over_under'], currentFixtureIdFromUrl, 30),
+          tryTableQuery(['moneyline 1x2', 'money line', 'moneyline'], currentFixtureIdFromUrl, 30),
         ]);
+
+        // Update history state
+        if (!isCancelled && activeFixtureIdRef.current === thisRequestFixtureId) {
+          setHistoryData({
+            hdp: Array.isArray(hdpHistory.data) ? hdpHistory.data : [],
+            ou: Array.isArray(ouHistory.data) ? ouHistory.data : [],
+            '1x2': Array.isArray(mlHistory.data) ? mlHistory.data : [],
+          });
+        }
 
         // Nuclear: request identity guard (prevents old request overwriting new match)
         if (isCancelled || activeFixtureIdRef.current !== thisRequestFixtureId) return;
@@ -1156,6 +1302,287 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     ...filteredSignals.filter((s) => s.type === 'analysis'),
   ];
 
+  // Live Odds Card Component
+  const LiveOddsCard = () => {
+    const { hdp, ou, oneXtwo } = _analysisData;
+    return (
+      <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-neon-red animate-pulse" />
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Live Odds</h3>
+          </div>
+          <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+            <Activity size={12} className="text-neon-red" />
+            <span className="text-[10px] text-gray-400 font-mono">Refresh in 4s</span>
+          </div>
+          <button className="bg-neon-blue/10 text-neon-blue border border-neon-blue/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase hover:bg-neon-blue/20 transition-all">
+            View Odds History
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          {/* 1X2 */}
+          <div className="space-y-3">
+            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">1X2</div>
+            <div className="grid grid-cols-3 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
+              {[
+                { label: 'Home', val: oneXtwo?.moneyline_1x2_home || '1.25' },
+                { label: 'Draw', val: oneXtwo?.moneyline_1x2_draw || '5.00' },
+                { label: 'Away', val: oneXtwo?.moneyline_1x2_away || '15.00' }
+              ].map(item => (
+                <div key={item.label} className="text-center p-1.5">
+                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
+                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* O/U */}
+          <div className="space-y-3">
+            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Over/Under {ou?.line || '2.5'}</div>
+            <div className="grid grid-cols-2 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
+              {[
+                { label: 'Over', val: ou?.over || '2.10' },
+                { label: 'Under', val: ou?.under || '1.73' }
+              ].map(item => (
+                <div key={item.label} className="text-center p-1.5">
+                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
+                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* HDP */}
+          <div className="space-y-3">
+            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Asian Handicap {hdp?.line || '+1.25'}</div>
+            <div className="grid grid-cols-2 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
+              {[
+                { label: 'Home', val: hdp?.home_odds || '1.98' },
+                { label: 'Away', val: hdp?.away_odds || '1.88' }
+              ].map(item => (
+                <div key={item.label} className="text-center p-1.5">
+                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
+                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // AI Predictions Module Component
+  const AIPredictionsModule = () => {
+    const [subTab, setSubTab] = useState<'1x2' | 'hdp' | 'ou'>('1x2');
+    const [strategyFilter, setStrategyFilter] = useState('Aggressive');
+    
+    // Find the signal for current sub-tab
+    const activeSignal = fixtureScopedSignals.find(s => s.category === subTab && s.type === 'sniper');
+    const data = _analysisData[subTab];
+
+    const strategyOptions = [
+      { id: 'Aggressive', icon: '🔥', color: 'bg-orange-500' },
+      { id: 'Conservative', icon: '🛡️', color: 'bg-blue-500' },
+      { id: 'Balanced', icon: '⚖️', color: 'bg-gray-500' },
+      { id: 'Value Hunter', icon: '💎', color: 'bg-cyan-500' },
+      { id: 'Safe Play', icon: '🏰', color: 'bg-green-500' }
+    ];
+
+    const handleOpenHistory = () => {
+      setHistoryCategory(subTab);
+      setShowHistoryModal(true);
+    };
+
+    return (
+      <div className="bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative">
+        {/* Module Header */}
+        <div className="p-5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-neon-gold/10 border border-neon-gold/20 flex items-center justify-center">
+              <Zap size={20} className="text-neon-gold" fill="currentColor" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">AI Predictions</h3>
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">{strategyFilter}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <button 
+              onClick={handleOpenHistory}
+              className="text-neon-gold flex items-center gap-1.5 text-[10px] font-bold uppercase hover:opacity-80 transition-opacity"
+            >
+              <Activity size={14} /> Signal History
+            </button>
+            <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+              <Activity size={12} className="text-neon-red" />
+              <span className="text-[10px] text-gray-400 font-mono">Refresh in 4s</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Strategy Filters */}
+        <div className="px-5 pb-4 flex gap-2 overflow-x-auto no-scrollbar">
+          {strategyOptions.map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setStrategyFilter(opt.id)}
+              className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
+                strategyFilter === opt.id 
+                  ? `${opt.color} text-white border-transparent shadow-lg shadow-white/5` 
+                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10'
+              }`}
+            >
+              <span>{opt.icon}</span> {opt.id}
+            </button>
+          ))}
+        </div>
+
+        {/* Category Tabs */}
+        <div className="px-5 pb-5">
+          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5">
+            {[
+              { id: '1x2', label: '1X2' },
+              { id: 'ou', label: 'O/U' },
+              { id: 'hdp', label: 'HDP' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSubTab(tab.id as any)}
+                className={`flex-1 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                  subTab === tab.id 
+                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xl scale-[1.02]' 
+                    : 'text-gray-500 hover:text-white'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Current Prediction Content */}
+        <div className="px-5 pb-6 space-y-5">
+          {/* Market & Status Bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-600/20 text-blue-400 border border-blue-600/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase">
+                {activeSignal?.bookmaker || 'BET365'}
+              </div>
+              <div className="bg-red-600/20 text-red-400 border border-red-600/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
+                <Activity size={12} /> {activeSignal?.timestamp || '45\''}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
+                <CheckCircle size={14} /> {subTab.toUpperCase()} {activeSignal?.line ? `+${activeSignal.line}` : ''}
+              </div>
+              <div className="bg-neon-gold/20 text-neon-gold border border-neon-gold/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-neon-gold" /> {activeSignal?.signal || 'WAIT'}
+              </div>
+            </div>
+          </div>
+
+          {/* Odds Display */}
+          {subTab === '1x2' ? (
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'HOME', val: data?.moneyline_1x2_home || '1.25' },
+                { label: 'DRAW', val: data?.moneyline_1x2_draw || '5.00' },
+                { label: 'AWAY', val: data?.moneyline_1x2_away || '15.00' }
+              ].map(item => (
+                <div key={item.label} className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
+                  <div className="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
+                  <div className="text-xl font-black text-white font-mono">{item.val}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="bg-black/40 border border-white/5 rounded-2xl py-3 px-4 text-center">
+                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Line <span className="text-cyan-400">{data?.line || '2.5'}</span></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: subTab === 'ou' ? 'OVER' : 'HOME', val: subTab === 'ou' ? data?.over : data?.home_odds },
+                  { label: subTab === 'ou' ? 'UNDER' : 'AWAY', val: subTab === 'ou' ? data?.under : data?.away_odds }
+                ].map(item => (
+                  <div key={item.label} className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
+                    <div className="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
+                    <div className="text-xl font-black text-white font-mono">{item.val || '-'}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Detailed Reports */}
+          <div className="space-y-4 pt-2">
+            {/* Staking Plan */}
+            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 space-y-3 shadow-inner">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-neon-gold/10 flex items-center justify-center">
+                    <span className="text-sm">💎</span>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Staking Plan</div>
+                    <div className="text-xs font-black text-neon-gold">
+                      {activeSignal?.stacking_quantity || '0 Unit'} ({activeSignal?.stacking_plan_description || 'Observe'})
+                    </div>
+                  </div>
+                </div>
+                {activeSignal?.vig_status && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[9px] text-green-400 font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    {activeSignal.vig_status}
+                  </div>
+                )}
+              </div>
+              <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
+                {activeSignal?.guruComment || activeSignal?.stacking_plan_description || 'Waiting for market liquidity to generate staking guide.'}
+              </p>
+            </div>
+
+            {/* Market Performance */}
+            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 space-y-3 shadow-inner">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-neon-blue/10 flex items-center justify-center">
+                  <TrendingUp size={16} className="text-neon-blue" />
+                </div>
+                <div>
+                  <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Market Performance</div>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-300 leading-relaxed italic">
+                {activeSignal?.market_analysis_trend_direction || 'Analyzing market depth and smart money flow...'}
+              </p>
+              {activeSignal?.market_analysis_odds_check && (
+                <div className="pt-2 border-t border-white/5 text-[10px] text-gray-500 leading-relaxed">
+                  {activeSignal.market_analysis_odds_check}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Warning Banner */}
+        <div className="bg-neon-gold/10 border-t border-neon-gold/20 p-4 flex gap-3 items-center">
+          <Info size={16} className="text-neon-gold flex-none" />
+          <p className="text-[9px] text-neon-gold/80 leading-tight font-medium">
+            AI predictions are generated for informational purposes only. Please gamble responsibly. 18+ • These predictions are generated by AI.
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -1250,7 +1677,15 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 </div>
               )}
 
-              {/* Category Filters */}
+              {hasEntered && (
+                <>
+                  <LiveOddsCard />
+                  <AIPredictionsModule />
+                </>
+              )}
+
+              {/* Original Category Filters (Optional - can be hidden if AIPredictionsModule is primary) */}
+              {false && (
               <div className="flex gap-2">
                 {[
                   { id: 'all', label: 'ALL' },
@@ -1292,8 +1727,10 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   );
                 })}
               </div>
+              )}
 
-              {/* Signals List (Sniper first, then Analysis) */}
+              {/* Original Signals List (Optional - can be hidden if AIPredictionsModule is primary) */}
+              {false && (
               <div className="space-y-4">
                 {!hasEntered ? null : isLoadingAnalysis ? (
                   // Loading state
@@ -1333,6 +1770,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   </div>
                 )}
               </div>
+              )}
+            </motion.div>
+          )}
 
               {/* Smart Money Chart (bottom) - Temporarily hidden */}
               {/* TODO: Re-enable when n8n starts pushing continuous odds data */}
@@ -1708,6 +2148,17 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               )}
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Signal History Modal */}
+      <AnimatePresence>
+        {showHistoryModal && (
+          <SignalHistoryModal
+            category={historyCategory}
+            data={historicalData[historyCategory]}
+            onClose={() => setShowHistoryModal(false)}
+          />
         )}
       </AnimatePresence>
     </motion.div>
