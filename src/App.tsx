@@ -269,16 +269,27 @@ function App() {
             isStarred: watchlistIdsRef.current.has(updatedMatch.id),
           };
           
-          setMatches((prev) =>
-            prev.map((m) => {
+          setMatches((prev) => {
+            const next = prev.map((m) => {
               // Match by id or fixture_id
               const matchId = updatedPrematch.id || updatedPrematch.fixture_id;
               if (m.id === matchId) {
                 return mergedUpdatedMatch;
               }
               return m;
-            })
-          );
+            });
+
+            // CRITICAL: Update selectedMatch if it's the one being updated
+            // This ensures War Room UI stays in sync with live score/clock
+            if (selectedMatch) {
+              const updated = next.find(m => m.id === selectedMatch.id);
+              if (updated) {
+                setSelectedMatch(updated);
+              }
+            }
+
+            return next;
+          });
         }
       )
       .subscribe();

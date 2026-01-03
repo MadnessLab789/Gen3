@@ -1415,7 +1415,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 {activeSignal?.bookmaker || 'BET365'}
               </div>
               <div className="bg-white/5 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
-                <Activity size={10} /> {activeSignal?.timestamp || '45\''}
+                <Activity size={10} /> {match.status === 'LIVE' ? match.time : (activeSignal?.timestamp || 'PRE')}
               </div>
             </div>
             <div className="flex gap-1.5">
