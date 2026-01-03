@@ -118,7 +118,7 @@ export default function WalletScreen(props: {
     if (!sb) return;
 
     // Set up realtime listener for transactions
-    const channel = sb
+    const transactionChannel = sb
       .channel(`wallet-updates-${telegramId}`)
       .on(
         'postgres_changes',
@@ -129,8 +129,33 @@ export default function WalletScreen(props: {
       )
       .subscribe();
 
+    // Set up realtime listener for balance/bonus changes in users table
+    const userChannel = sb
+      .channel(`user-balance-sync-${telegramId}`)
+      .on(
+        'postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'users',
+          filter: `telegram_id=eq.${telegramId}` 
+        },
+        (payload) => {
+          if (payload.new) {
+            setFinancials(prev => ({
+              ...prev,
+              balance: Number(payload.new.balance ?? 0),
+              bonus: Number(payload.new.bonus ?? 0),
+              available: Number(payload.new.balance ?? 0),
+            }));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      sb.removeChannel(channel);
+      sb.removeChannel(transactionChannel);
+      sb.removeChannel(userChannel);
     };
   }, [telegramId]);
 
