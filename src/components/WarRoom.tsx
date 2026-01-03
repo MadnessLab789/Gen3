@@ -1311,11 +1311,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     const data = subTab === '1x2' ? _analysisData.oneXtwo : (subTab === 'hdp' ? _analysisData.hdp : _analysisData.ou);
 
     const strategyOptions = [
-      { id: 'Aggressive', icon: '🔥', color: 'bg-orange-500' },
-      { id: 'Conservative', icon: '🛡️', color: 'bg-blue-500' },
-      { id: 'Balanced', icon: '⚖️', color: 'bg-gray-500' },
-      { id: 'Value Hunter', icon: '💎', color: 'bg-cyan-500' },
-      { id: 'Safe Play', icon: '🏰', color: 'bg-green-500' }
+      { id: 'Aggressive', icon: '🔥' },
+      { id: 'Conservative', icon: '🛡️' },
+      { id: 'Balanced', icon: '⚖️' },
+      { id: 'Value Hunter', icon: '💎' },
+      { id: 'Safe Play', icon: '🏰' }
     ];
 
     const handleOpenHistory = () => {
@@ -1334,7 +1334,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             <div>
               <h3 className="text-base font-black text-white tracking-tight uppercase">AI Predictions</h3>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" />
                 <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">{strategyFilter}</span>
               </div>
             </div>
@@ -1347,7 +1347,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               <Activity size={12} /> History
             </button>
             <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-              <Activity size={10} className="text-neon-red animate-pulse" />
+              <Activity size={10} className="text-neon-gold/60 animate-pulse" />
               <span className="text-[9px] text-gray-400 font-mono">LIVE {countdown}S</span>
             </div>
           </div>
@@ -1361,7 +1361,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               onClick={() => setStrategyFilter(opt.id)}
               className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
                 strategyFilter === opt.id 
-                  ? `${opt.color} text-white border-transparent shadow-lg shadow-white/5` 
+                  ? `bg-neon-gold text-black border-transparent shadow-lg shadow-neon-gold/20` 
                   : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10 hover:text-gray-300'
               }`}
             >
@@ -1383,7 +1383,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 onClick={() => setSubTab(tab.id as any)}
                 className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
                   subTab === tab.id 
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xl scale-[1.02]' 
+                    ? 'bg-white/10 text-white shadow-inner scale-[1.02] border border-white/10' 
                     : 'text-gray-500 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -1398,16 +1398,16 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           {/* Market & Status Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="bg-blue-600/10 text-blue-400 border border-blue-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase">
+              <div className="bg-white/5 text-gray-400 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase">
                 {activeSignal?.bookmaker || 'BET365'}
               </div>
-              <div className="bg-red-600/10 text-red-400 border border-red-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+              <div className="bg-white/5 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
                 <Activity size={10} /> {activeSignal?.timestamp || '45\''}
               </div>
             </div>
             <div className="flex gap-1.5">
-              <div className="bg-green-600/10 text-green-400 border border-green-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
-                <CheckCircle size={12} /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
+              <div className="bg-white/5 text-gray-300 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                <CheckCircle size={12} className="text-gray-500" /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
               </div>
               <div className="bg-neon-gold/10 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" /> {activeSignal?.signal || 'WAIT'}
@@ -1476,14 +1476,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               </p>
             </div>
 
-            {/* Malaysia Commentary (The requested addition) */}
-            <div className="bg-neon-blue/[0.03] border border-neon-blue/10 rounded-xl p-3.5 space-y-2 shadow-inner">
+            {/* Commentary Section */}
+            <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3.5 space-y-2 shadow-inner">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-neon-blue/10 flex items-center justify-center border border-neon-blue/10">
-                  <MessageSquare size={14} className="text-neon-blue" />
+                <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
+                  <MessageSquare size={14} className="text-gray-400" />
                 </div>
                 <div>
-                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Malaysia Commentary</div>
+                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Commentary</div>
                 </div>
               </div>
               <p className="text-[10px] text-gray-300 leading-relaxed font-bold bg-black/20 p-2 rounded-lg border border-white/[0.03]">
@@ -1494,8 +1494,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             {/* Market Performance */}
             <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2 shadow-inner">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-neon-blue/10 flex items-center justify-center border border-neon-blue/10">
-                  <TrendingUp size={14} className="text-neon-blue" />
+                <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
+                  <TrendingUp size={14} className="text-gray-500" />
                 </div>
                 <div>
                   <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Market Performance</div>
