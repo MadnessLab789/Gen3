@@ -43,7 +43,7 @@ interface UserProfile {
   username: string;
   first_name: string;
   photo_url?: string;
-  coins: number; // Fixed: Matches database column 'coins'
+  balance: number; // Primary balance from 'balance' column
   is_vip: boolean; // legacy/optional (kept for backward compatibility)
   vip_end_time?: string | null; // timestamp (ISO string) from DB
 }
@@ -414,7 +414,7 @@ function App() {
         prev
           ? {
               ...prev,
-              coins: latestBalance,
+              balance: latestBalance,
               vip_end_time: latestVipEnd ?? null,
               is_vip: hasVip,
             }
@@ -474,46 +474,27 @@ function App() {
         if (existingError) throw existingError;
 
         if (!existing) {
-          // 优先尝试插入 coins（新 schema），如果列不存在则 fallback balance（旧 schema）
-          const tryCoins = await supabase.from('users').insert({
+          // 确保用户记录存在，默认余额为 0
+          const { error: insError } = await supabase.from('users').insert({
             telegram_id: telegramId,
             username,
             first_name: firstName,
             photo_url: photoUrl,
-            coins: 0,
+            balance: 0,
             is_vip: false,
           });
 
-          if (tryCoins.error) {
-            const msg = String(tryCoins.error.message || '').toLowerCase();
-            const coinsColumnMissing = msg.includes('column') && msg.includes('coins');
-            const isVipColumnMissing = msg.includes('column') && msg.includes('is_vip');
-            const photoColumnMissing = msg.includes('column') && msg.includes('photo_url');
-
-            // 如果是因为列不存在导致失败，尝试最小字段 + balance
-            if (coinsColumnMissing || isVipColumnMissing || photoColumnMissing) {
-              const tryBalance = await supabase.from('users').insert({
-                telegram_id: telegramId,
-                username,
-                first_name: firstName,
-                balance: 0,
-              } as any);
-
-              if (tryBalance.error) throw tryBalance.error;
+          if (insError) throw insError;
             } else {
-              throw tryCoins.error;
-            }
-          }
-        } else {
-          // 更新改名（只更新最常见字段，避免列不存在）
+          // 更新改名
           const upd = await supabase
             .from('users')
-            .update({ username, first_name: firstName } as any)
+            .update({ username, first_name: firstName, photo_url: photoUrl } as any)
             .eq('telegram_id', telegramId);
-          if (upd.error) console.warn('[Users] update username/first_name failed:', upd.error);
+          if (upd.error) console.warn('[Users] update user data failed:', upd.error);
         }
 
-        // 拉取最新余额（兼容 coins/balance），并映射到前端 user.coins
+        // 拉取最新余额，并映射到前端 user.balance
         const { data: row, error: rowError } = await supabase
           .from('users')
           .select('*')
@@ -521,7 +502,7 @@ function App() {
           .maybeSingle();
         if (rowError) throw rowError;
 
-        const latestCoins = Number((row as any)?.coins ?? (row as any)?.balance ?? 0) || 0;
+        const latestBalance = Number((row as any)?.balance ?? 0) || 0;
         const latestIsVip = Boolean((row as any)?.is_vip ?? false);
         const vipEndTime = ((row as any)?.vip_end_time ?? null) as string | null;
 
@@ -532,7 +513,7 @@ function App() {
           username,
           first_name: firstName,
           photo_url: photoUrl,
-          coins: latestCoins,
+          balance: latestBalance,
           is_vip: latestIsVip,
           vip_end_time: vipEndTime,
         });
@@ -554,52 +535,77 @@ function App() {
     initApp();
   }, []);
 
-  // --- Balance Update Logic ---
+  // --- Global Realtime Balance Sync ---
+  useEffect(() => {
+    const sb = supabase;
+    if (!user?.telegram_id || !sb) return;
+
+    const channel = sb
+      .channel(`global-user-sync-${user.telegram_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `telegram_id=eq.${user.telegram_id}`,
+        },
+        (payload) => {
+          if (payload.new) {
+            const newBalance = Number(payload.new.balance ?? 0);
+            const newIsVip = Boolean(payload.new.is_vip ?? false);
+            const newVipEndTime = payload.new.vip_end_time as string | null;
+
+            setUser((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    balance: newBalance,
+                    is_vip: newIsVip,
+                    vip_end_time: newVipEndTime,
+                  }
+                : prev
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      sb.removeChannel(channel);
+    };
+  }, [user?.telegram_id]);
+
+  // --- Balance Update Logic (Local triggers, e.g. betting) ---
   const handleUpdateBalance = async (amount: number) => {
     if (!user || !supabase) return;
 
-    // Always fetch latest coins from DB before applying the delta to avoid stale local state
+    // Fetch latest balance from DB
     const { data: freshUser, error: freshError } = await supabase
       .from('users')
-      .select('coins, balance')
+      .select('balance')
       .eq('telegram_id', user.telegram_id)
       .maybeSingle();
 
     if (freshError) {
-      console.warn('[Balance] Failed to fetch latest balance, fallback to local:', freshError);
+      console.warn('[Balance] Failed to fetch latest balance:', freshError);
     }
 
-    const latestCoins = Number((freshUser as any)?.coins ?? (freshUser as any)?.balance ?? user.coins) || 0;
+    const latestBalance = Number((freshUser as any)?.balance ?? user.balance) || 0;
+    const newBalance = latestBalance + amount;
 
-    // 1. Calculate new balance based on freshest data
-    const newCoins = latestCoins + amount;
+    // Optimistic UI update
+    setUser({ ...user, balance: newBalance });
 
-    // 2. Optimistic UI update
-    setUser({ ...user, coins: newCoins });
-
-    // 3. Sync with DB
-    const updCoins = await supabase
+    // Sync with DB
+    const upd = await supabase
       .from('users')
-      .update({ coins: newCoins } as any)
+      .update({ balance: newBalance } as any)
       .eq('telegram_id', user.telegram_id);
 
-    if (!updCoins.error) return;
-
-    // fallback: balance column
-    const msg = String(updCoins.error.message || '').toLowerCase();
-    const coinsColumnMissing = msg.includes('column') && msg.includes('coins');
-    if (coinsColumnMissing) {
-      const updBal = await supabase
-        .from('users')
-        .update({ balance: newCoins } as any)
-        .eq('telegram_id', user.telegram_id);
-      if (updBal.error) {
-        console.error('Failed to update balance:', updBal.error);
-      }
-      return;
+    if (upd.error) {
+      console.error('Failed to update balance:', upd.error);
     }
-
-    console.error('Failed to update coins:', updCoins.error);
   };
 
   const toggleStar = async (id: number) => {
@@ -669,7 +675,7 @@ function App() {
         onUpdateBalance={handleUpdateBalance}
         onVipPurchase={handleVipPurchase}
         isVip={isVipActive(user?.vip_end_time) || Boolean(user?.is_vip)}
-        userBalance={user?.coins ?? 0}
+        userBalance={user?.balance ?? 0}
       />
     );
   }
@@ -931,7 +937,7 @@ function App() {
 
       {currentView === 'wallet' && (
         <WalletScreen
-          balance={user?.coins ?? 0}
+          balance={user?.balance ?? 0}
           onBalanceClick={() => setShowWallet(true)}
           showAlert={showTelegramAlert}
           hideBalance={hideBalance}
@@ -1014,7 +1020,7 @@ function App() {
       )}
 
       <AnimatePresence>
-        {showWallet && <WalletModal balance={user?.coins ?? 0} onClose={() => setShowWallet(false)} />}
+        {showWallet && <WalletModal balance={user?.balance ?? 0} onClose={() => setShowWallet(false)} />}
       </AnimatePresence>
 
       <RechargeModal

@@ -16,7 +16,7 @@ export function Header(props: {
 }) {
   const { onBalanceClick, hideBalance = false } = props;
   const [tgUser, setTgUser] = useState<TelegramUser | null>(null);
-  const [coins, setCoins] = useState<number>(0);
+  const [balance, setBalance] = useState<number>(0);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,61 +35,39 @@ export function Header(props: {
     setTgUser(user);
   }, []);
 
-  // Fetch coins from Supabase + subscribe realtime updates
+  // Fetch balance from Supabase + subscribe realtime updates
   useEffect(() => {
     const telegramId = tgUser?.id;
     if (!telegramId) return;
     const sb = supabase;
     if (!sb) {
-      console.warn('[Header] Supabase client not configured; cannot fetch realtime coins.');
+      console.warn('[Header] Supabase client not configured; cannot fetch realtime balance.');
       return;
     }
 
     let cancelled = false;
-    const fetchCoins = async () => {
-      // Preferred column: coins
-      const resCoins = await sb
+    const fetchBalance = async () => {
+      const { data, error } = await sb
         .from('users')
-        .select('coins,photo_url')
+        .select('balance, photo_url')
         .eq('telegram_id', telegramId)
         .maybeSingle();
 
       if (cancelled) return;
 
-      if (!resCoins.error) {
-        const next = Number((resCoins.data as any)?.coins ?? 0) || 0;
-        setCoins(next);
-        setPhotoUrl(String((resCoins.data as any)?.photo_url ?? '') || null);
-        return;
+      if (!error && data) {
+        const next = Number(data.balance ?? 0) || 0;
+        setBalance(next);
+        setPhotoUrl(String(data.photo_url ?? '') || null);
+      } else if (error) {
+        console.warn('[Header] Failed to fetch user balance:', error);
       }
-
-      // Fallback: balance (only if coins column doesn't exist in this schema)
-      if (String(resCoins.error.message || '').toLowerCase().includes('column') && String(resCoins.error.message || '').toLowerCase().includes('coins')) {
-        const resBalance = await sb
-          .from('users')
-          .select('balance,photo_url')
-          .eq('telegram_id', telegramId)
-          .maybeSingle();
-
-        if (cancelled) return;
-        if (resBalance.error) {
-          console.warn('[Header] Failed to fetch user balance:', resBalance.error);
-          return;
-        }
-
-        const next = Number((resBalance.data as any)?.balance ?? 0) || 0;
-        setCoins(next);
-        setPhotoUrl(String((resBalance.data as any)?.photo_url ?? '') || null);
-        return;
-      }
-
-      console.warn('[Header] Failed to fetch user coins:', resCoins.error);
     };
 
-    void fetchCoins();
+    void fetchBalance();
 
     const channel = sb
-      .channel(`users-balance-${telegramId}`)
+      .channel(`header-balance-sync-${telegramId}`)
       .on(
         'postgres_changes',
         {
@@ -99,11 +77,12 @@ export function Header(props: {
           filter: `telegram_id=eq.${telegramId}`,
         },
         (payload: any) => {
-          const next =
-            Number(payload?.new?.coins ?? payload?.new?.balance ?? 0) || 0;
-          setCoins(next);
-          const nextPhoto = payload?.new?.photo_url;
-          if (typeof nextPhoto === 'string') setPhotoUrl(nextPhoto || null);
+          if (payload.new) {
+            const next = Number(payload.new.balance ?? 0) || 0;
+            setBalance(next);
+            const nextPhoto = payload.new.photo_url;
+            if (typeof nextPhoto === 'string') setPhotoUrl(nextPhoto || null);
+          }
         }
       )
       .subscribe();
@@ -168,7 +147,7 @@ export function Header(props: {
         <span className="font-data">
           {hideBalance
             ? '******'
-            : `$${coins.toLocaleString('en-US', {
+            : `$${balance.toLocaleString('en-US', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}`}

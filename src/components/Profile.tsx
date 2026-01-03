@@ -50,7 +50,7 @@ export default function Profile(props: {
     username: string;
     first_name: string;
     photo_url?: string;
-    coins: number;
+    balance: number;
     vip_end_time?: string | null;
     is_vip?: boolean;
   } | null;
@@ -86,7 +86,7 @@ export default function Profile(props: {
   } = props;
 
   const displayName = user?.username ? `@${user.username}` : user?.first_name || 'Guest';
-  const balance = Number.isFinite(Number(user?.coins)) ? Number(user?.coins) : 0;
+  const balance = Number.isFinite(Number(user?.balance)) ? Number(user?.balance) : 0;
   const labelCls = 'text-[10px] uppercase tracking-widest text-gray-500';
   const gold = '#FFD700';
   const pillBtnCls =
