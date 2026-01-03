@@ -1338,9 +1338,9 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
     const getBgGradient = (id: string) => {
       switch (id) {
-        case '1x2': return 'from-blue-500/5 via-transparent to-transparent';
-        case 'ou': return 'from-orange-500/5 via-transparent to-transparent';
-        case 'hdp': return 'from-purple-500/5 via-transparent to-transparent';
+        case '1x2': return 'from-blue-600/10 via-transparent to-transparent';
+        case 'ou': return 'from-orange-600/10 via-transparent to-transparent';
+        case 'hdp': return 'from-purple-600/10 via-transparent to-transparent';
         default: return 'from-transparent';
       }
     };
@@ -1355,13 +1355,17 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         {/* Module Header */}
         <div className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-neon-gold/10 border border-neon-gold/20 flex items-center justify-center">
-              <Zap size={18} className="text-neon-gold" fill="currentColor" />
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center border transition-all duration-500 ${
+              subTab === '1x2' ? 'bg-blue-500/10 border-blue-500/20' : (subTab === 'ou' ? 'bg-orange-500/10 border-orange-500/20' : 'bg-purple-500/10 border-purple-500/20')
+            }`}>
+              <Zap size={18} className={subTab === '1x2' ? 'text-blue-400' : (subTab === 'ou' ? 'text-orange-400' : 'text-purple-400')} fill="currentColor" />
             </div>
             <div>
               <h3 className="text-base font-black text-white tracking-tight uppercase">AI Predictions</h3>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" />
+                <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${
+                  subTab === '1x2' ? 'bg-blue-400' : (subTab === 'ou' ? 'bg-orange-400' : 'bg-purple-400')
+                }`} />
                 <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">{strategyFilter}</span>
               </div>
             </div>
@@ -1386,10 +1390,10 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             <button
               key={opt.id}
               onClick={() => setStrategyFilter(opt.id)}
-              className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
+              className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border ${
                 strategyFilter === opt.id 
-                  ? `bg-neon-gold text-black border-transparent shadow-lg shadow-neon-gold/20` 
-                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10 hover:text-gray-300'
+                  ? `${getTabColor(subTab)} text-white border-transparent shadow-lg` 
+                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10'
               }`}
             >
               <span>{opt.icon}</span> {opt.id}
@@ -1421,124 +1425,147 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         </div>
         
         {/* Current Prediction Content */}
-        <div className={`px-4 pb-4 space-y-4 bg-gradient-to-b ${getBgGradient(subTab)} transition-colors duration-500`}>
-          {/* Market & Status Bar */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="bg-white/5 text-gray-400 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase">
-                {activeSignal?.bookmaker || 'BET365'}
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={subTab}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            transition={{ duration: 0.3 }}
+            className={`px-4 pb-4 space-y-6 bg-gradient-to-b ${getBgGradient(subTab)} transition-colors duration-500`}
+          >
+            {/* Market & Status Bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="bg-white/5 text-gray-400 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase">
+                  {activeSignal?.bookmaker || 'BET365'}
+                </div>
+                <div className="bg-white/5 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                  <Activity size={10} /> {match.status === 'LIVE' ? match.time : (activeSignal?.timestamp || 'PRE')}
+                </div>
               </div>
-              <div className="bg-white/5 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
-                <Activity size={10} /> {match.status === 'LIVE' ? match.time : (activeSignal?.timestamp || 'PRE')}
+              <div className="flex gap-1.5">
+                <div className={`bg-white/5 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1 ${getTextGrad(subTab)}`}>
+                  <CheckCircle size={12} className={subTab === '1x2' ? 'text-blue-400' : (subTab === 'ou' ? 'text-orange-400' : 'text-purple-400')} /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
+                </div>
+                <div className="bg-neon-gold/10 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" /> {activeSignal?.signal || 'WAIT'}
+                </div>
               </div>
             </div>
-            <div className="flex gap-1.5">
-              <div className={`bg-white/5 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1 ${getTextGrad(subTab)}`}>
-                <CheckCircle size={12} className={subTab === '1x2' ? 'text-blue-400' : (subTab === 'ou' ? 'text-orange-400' : 'text-purple-400')} /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
-              </div>
-              <div className="bg-neon-gold/10 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" /> {activeSignal?.signal || 'WAIT'}
-              </div>
-            </div>
-          </div>
 
-          {/* Odds Display */}
-          {subTab === '1x2' ? (
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: 'HOME', val: data?.moneyline_1x2_home || '1.03' },
-                { label: 'DRAW', val: data?.moneyline_1x2_draw || '15' },
-                { label: 'AWAY', val: data?.moneyline_1x2_away || '81' }
-              ].map(item => (
-                <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
-                  <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad('1x2')}`}>{item.label}</div>
-                  <div className={`text-lg font-black font-mono ${getTextGrad('1x2')}`}>{item.val}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="bg-black/40 border border-white/5 rounded-xl py-2 px-3 text-center">
-                <div className={`text-[9px] font-bold uppercase tracking-widest ${getTextGrad(subTab)}`}>
-                  {subTab === 'ou' ? 'Over/Under' : 'Asian Handicap'} <span className="font-mono">{data?.line || '2.5'}</span>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            {/* Odds Display */}
+            {subTab === '1x2' ? (
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: subTab === 'ou' ? 'OVER' : 'HOME', val: subTab === 'ou' ? data?.over : data?.home_odds },
-                  { label: subTab === 'ou' ? 'UNDER' : 'AWAY', val: subTab === 'ou' ? data?.under : data?.away_odds }
+                  { label: 'HOME', val: data?.moneyline_1x2_home || '1.03' },
+                  { label: 'DRAW', val: data?.moneyline_1x2_draw || '15' },
+                  { label: 'AWAY', val: data?.moneyline_1x2_away || '81' }
                 ].map(item => (
-                  <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
-                    <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad(subTab)}`}>{item.label}</div>
-                    <div className={`text-lg font-black font-mono ${getTextGrad(subTab)}`}>{item.val || '-'}</div>
+                  <div key={item.label} className="bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center shadow-inner">
+                    <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad('1x2')}`}>{item.label}</div>
+                    <div className={`text-lg font-black font-mono ${getTextGrad('1x2')}`}>{item.val}</div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Detailed Reports */}
-          <div className="space-y-3">
-            {/* Staking Plan */}
-            <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3.5 space-y-2.5 shadow-inner">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-neon-gold/10 flex items-center justify-center border border-neon-gold/10">
-                    <span className="text-xs">💎</span>
+            ) : (
+              <div className="space-y-2">
+                <div className="bg-white/[0.03] border border-white/5 rounded-xl py-2 px-3 text-center shadow-inner">
+                  <div className={`text-[9px] font-bold uppercase tracking-widest ${getTextGrad(subTab)}`}>
+                    {subTab === 'ou' ? 'Over/Under' : 'Asian Handicap'} <span className="font-mono">{data?.line || '2.5'}</span>
                   </div>
-                  <div>
-                    <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Staking Plan</div>
-                    <div className="text-[11px] font-black text-neon-gold">
-                      {activeSignal?.stacking_quantity || '0 Unit'} ({activeSignal?.stacking_plan_description || 'No Value'})
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: subTab === 'ou' ? 'OVER' : 'HOME', val: subTab === 'ou' ? data?.over : data?.home_odds },
+                    { label: subTab === 'ou' ? 'UNDER' : 'AWAY', val: subTab === 'ou' ? data?.under : data?.away_odds }
+                  ].map(item => (
+                    <div key={item.label} className="bg-white/[0.03] border border-white/5 rounded-xl p-3 text-center shadow-inner">
+                      <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad(subTab)}`}>{item.label}</div>
+                      <div className={`text-lg font-black font-mono ${getTextGrad(subTab)}`}>{item.val || '-'}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Detailed Reports */}
+            <div className="space-y-5">
+              {/* Staking Plan */}
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl overflow-hidden shadow-inner backdrop-blur-md">
+                <div className={`px-3 py-1.5 flex items-center justify-between ${getTabColor(subTab)}`}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">💎</span>
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Staking Plan</span>
+                  </div>
+                  <div className="bg-white/20 px-1.5 py-0.5 rounded text-[8px] font-bold text-white uppercase">
+                    {activeSignal?.signal || 'WAIT'}
+                  </div>
+                </div>
+                <div className="p-3.5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex-1 p-2 rounded-lg border border-white/5 flex flex-col items-center justify-center transition-all duration-500 ${
+                      subTab === '1x2' ? 'bg-blue-500/5' : (subTab === 'ou' ? 'bg-orange-500/5' : 'bg-purple-500/5')
+                    }`}>
+                      <div className="text-[8px] text-gray-500 font-bold uppercase tracking-tight">Units</div>
+                      <div className={`text-sm font-black font-mono ${getTextGrad(subTab)}`}>
+                        {activeSignal?.stacking_quantity || '0 Unit'}
+                      </div>
+                    </div>
+                    <div className="flex-[2] space-y-0.5">
+                      <div className="text-[8px] text-gray-500 font-bold uppercase tracking-tight">Plan Strategy</div>
+                      <div className="text-[11px] font-black text-white">
+                        {activeSignal?.stacking_plan_description || 'No Value Description'}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="bg-neon-gold/10 px-1.5 py-0.5 rounded border border-neon-gold/20 flex items-center gap-1">
-                  <span className="w-1 h-1 rounded-full bg-neon-gold" />
-                  <span className="text-[8px] text-neon-gold font-bold uppercase">{activeSignal?.signal || 'WAIT'}</span>
+                  <p className="text-[10px] text-gray-400 leading-relaxed font-medium bg-black/20 p-2.5 rounded-lg border border-white/[0.03]">
+                    {activeSignal?.guruComment || 'Waiting for market liquidity to generate staking guide.'}
+                  </p>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-400 leading-relaxed font-medium bg-black/20 p-2 rounded-lg border border-white/[0.03]">
-                {activeSignal?.guruComment || 'Waiting for market liquidity to generate staking guide.'}
-              </p>
-            </div>
 
-            {/* Commentary Section */}
-            <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3.5 space-y-2 shadow-inner">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
-                  <MessageSquare size={14} className="text-gray-400" />
+              {/* Commentary Section */}
+              <div className="bg-white/[0.03] border border-white/5 rounded-xl overflow-hidden shadow-inner backdrop-blur-md">
+                <div className={`px-3 py-1.5 flex items-center gap-2 ${getTabColor(subTab)}`}>
+                  <MessageSquare size={14} className="text-white" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Commentary</span>
                 </div>
-                <div>
-                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Commentary</div>
+                <div className="p-3.5">
+                  <div className="bg-black/20 p-3 rounded-lg border border-white/[0.03]">
+                    <p className="text-[10px] text-gray-300 leading-[1.6] font-bold italic">
+                      {activeSignal?.commentary_malaysia || 'Analisis pasaran sedang dijalankan. Sila tunggu isyarat seterusnya.'}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-300 leading-relaxed font-bold bg-black/20 p-2 rounded-lg border border-white/[0.03]">
-                {activeSignal?.commentary_malaysia || 'Analisis pasaran sedang dijalankan. Sila tunggu isyarat seterusnya.'}
-              </p>
-            </div>
 
-            {/* Market Performance */}
-            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2 shadow-inner">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center border border-white/5">
-                  <TrendingUp size={14} className="text-gray-500" />
+              {/* Market Performance */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-xl overflow-hidden shadow-inner backdrop-blur-md">
+                <div className={`px-3 py-1.5 flex items-center gap-2 ${getTabColor(subTab)}`}>
+                  <TrendingUp size={14} className="text-white" />
+                  <span className="text-[10px] font-black text-white uppercase tracking-widest">Market Performance</span>
                 </div>
-                <div>
-                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Market Performance</div>
+                <div className="p-3.5 space-y-3">
+                  <p className="text-[10px] text-gray-400 leading-relaxed italic">
+                    {activeSignal?.market_analysis_trend_direction || 'Analyzing market depth and smart money flow...'}
+                  </p>
+                  {activeSignal?.market_analysis_odds_check && (
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-white/5">
+                      {activeSignal.market_analysis_odds_check.split(',').map((tag, idx) => (
+                        <div key={idx} className={`px-2 py-0.5 rounded text-[8px] font-bold font-mono transition-all duration-500 ${
+                          subTab === '1x2' ? 'bg-blue-500/10 text-blue-400' : (subTab === 'ou' ? 'bg-orange-500/10 text-orange-400' : 'bg-purple-500/10 text-purple-400')
+                        }`}>
+                          {tag.trim()}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-[10px] text-gray-400 leading-relaxed italic">
-                {activeSignal?.market_analysis_trend_direction || 'Analyzing market depth and smart money flow...'}
-              </p>
-              {activeSignal?.market_analysis_odds_check && (
-                <div className="pt-2 border-t border-white/5 text-[9px] text-gray-500 font-mono leading-tight">
-                  CHECK: {activeSignal.market_analysis_odds_check}
-                </div>
-              )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </AnimatePresence>
 
         {/* Warning Banner */}
         <div className="bg-neon-gold/[0.05] border-t border-neon-gold/10 p-3 flex gap-3 items-center">

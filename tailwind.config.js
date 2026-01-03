@@ -32,9 +32,9 @@ export default {
         // 进阶建议中的金光流动渐变
         'gold-card': 'linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,215,0,0) 50%, rgba(255,215,0,0.05) 100%)',
         'dark-gradient': 'linear-gradient(to bottom, #161616, #0A0A0A)',
-        'betting-blue-grad': 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-        'betting-orange-grad': 'linear-gradient(135deg, #F97316 0%, #C2410C 100%)',
-        'betting-purple-grad': 'linear-gradient(135deg, #A855F7 0%, #6D28D9 100%)',
+        'betting-blue-grad': 'linear-gradient(135deg, #1E40AF 0%, #3B82F6 100%)',
+        'betting-orange-grad': 'linear-gradient(135deg, #92400E 0%, #F59E0B 100%)',
+        'betting-purple-grad': 'linear-gradient(135deg, #5B21B6 0%, #8B5CF6 100%)',
       },
       boxShadow: {
         // 增加一个极细微的金色发光效果
