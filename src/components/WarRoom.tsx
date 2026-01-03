@@ -282,21 +282,18 @@ export default function WarRoom({
         </div>
 
         {/* Table Container */}
-        <div className="flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[800px]">
+        <div className="flex-1 overflow-auto custom-scrollbar bg-black/20">
+          <table className="w-full text-left border-collapse min-w-[800px] font-sans">
             <thead className="sticky top-0 bg-[#0A0A0A] z-10">
-              <tr className="border-b border-white/5">
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Clock</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Signal</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Selection</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Line</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{category === '1x2' ? 'Home' : 'Home'}</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">{category === '1x2' ? 'Draw' : 'Away'}</th>
-                {category === '1x2' && <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Away</th>}
-                {category === 'ou' && <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Under</th>}
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Bookmaker</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Stacking</th>
-                <th className="px-4 py-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">Vig Status</th>
+              <tr className="border-b border-white/10 bg-white/[0.02]">
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Clock</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Signal</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Selection</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Line</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Odds (H/D/A)</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Bookmaker</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest border-r border-white/5">Staking</th>
+                <th className="px-4 py-3 text-[9px] font-black text-gray-500 uppercase tracking-widest">Vig Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -307,44 +304,37 @@ export default function WarRoom({
                 const isStrong = signal.toLowerCase().includes('strong') || signal.toLowerCase().includes('back') || signal.toLowerCase().includes('recovery');
                 
                 return (
-                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
-                    <td className="px-4 py-4 text-xs font-mono text-gray-400 group-hover:text-white">{item.clock || '0'}'</td>
-                    <td className="px-4 py-4">
-                      <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${
-                        isStrong ? 'bg-orange-500/10 text-orange-500' :
-                        isHold ? 'bg-blue-500/10 text-blue-500' :
-                        isWait ? 'bg-neon-gold/10 text-neon-gold' :
-                        'bg-gray-500/10 text-gray-500'
+                  <tr key={idx} className="hover:bg-white/[0.03] transition-colors group">
+                    <td className="px-4 py-3 text-[11px] font-mono text-gray-500 group-hover:text-white border-r border-white/5">{item.clock || '0'}'</td>
+                    <td className="px-4 py-3 border-r border-white/5">
+                      <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-black uppercase border ${
+                        isStrong ? 'bg-orange-500/10 text-orange-500 border-orange-500/20' :
+                        isHold ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                        isWait ? 'bg-neon-gold/10 text-neon-gold border-neon-gold/20' :
+                        'bg-gray-500/10 text-gray-500 border-white/5'
                       }`}>
-                        {isStrong && <span>🔥</span>}
-                        {isHold && <span>🔵</span>}
-                        {isWait && <span>🟡</span>}
                         {signal}
                       </div>
                     </td>
-                    <td className="px-4 py-4 text-xs text-white font-medium">{item.selection || item.market || '-'}</td>
-                    <td className="px-4 py-4 text-xs font-mono text-neon-blue font-bold">{item.line || '-'}</td>
+                    <td className="px-4 py-3 text-[11px] text-white font-bold border-r border-white/5">{item.selection || item.market || '-'}</td>
+                    <td className="px-4 py-3 text-[11px] font-mono text-neon-blue font-black border-r border-white/5">{item.line || '-'}</td>
                     
-                    {/* Odds columns vary by category */}
-                    <td className="px-4 py-4 text-xs font-mono text-gray-300">
-                      {category === 'ou' ? item.over : (item.home_odds || item.moneyline_1x2_home || '-')}
+                    <td className="px-4 py-3 text-[11px] font-mono text-gray-400 border-r border-white/5">
+                      <div className="flex gap-2">
+                        <span className="text-white">{category === 'ou' ? item.over : (item.home_odds || item.moneyline_1x2_home || '-')}</span>
+                        {category === '1x2' && <span className="text-gray-600">/</span>}
+                        {category === '1x2' && <span className="text-white">{item.moneyline_1x2_draw || '-'}</span>}
+                        <span className="text-gray-600">/</span>
+                        <span className="text-white">{category === 'ou' ? item.under : (category === '1x2' ? item.moneyline_1x2_away : (item.away_odds || '-'))}</span>
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-xs font-mono text-gray-300">
-                      {category === 'ou' ? item.under : (category === '1x2' ? (item.moneyline_1x2_draw || '-') : (item.away_odds || '-'))}
-                    </td>
-                    {category === '1x2' && (
-                      <td className="px-4 py-4 text-xs font-mono text-gray-300">{item.moneyline_1x2_away || '-'}</td>
-                    )}
-                    {category === 'ou' && (
-                      <td className="px-4 py-4 text-xs font-mono text-gray-300">{item.under || '-'}</td>
-                    )}
 
-                    <td className="px-4 py-4 text-[10px] text-gray-500 font-mono">{item.bookmaker || 'bet365'}</td>
-                    <td className="px-4 py-4">
-                      <div className="text-[10px] font-bold text-neon-gold uppercase">{item.stacking_quantity || '0 Unit'}</div>
-                      <div className="text-[9px] text-gray-500 italic mt-0.5 truncate max-w-[150px]">({item.stacking_plan_description || 'Observe'})</div>
+                    <td className="px-4 py-3 text-[9px] text-gray-500 font-mono uppercase border-r border-white/5">{item.bookmaker || 'bet365'}</td>
+                    <td className="px-4 py-3 border-r border-white/5">
+                      <div className="text-[10px] font-black text-neon-gold tracking-tight">{item.stacking_quantity || '0 Unit'}</div>
+                      <div className="text-[8px] text-gray-600 italic truncate max-w-[120px]">{item.stacking_plan_description || 'Observe'}</div>
                     </td>
-                    <td className="px-4 py-4 text-[10px] font-mono text-gray-500">{item.vig_status || '-'}</td>
+                    <td className="px-4 py-3 text-[9px] font-mono text-gray-500">{item.vig_status || '-'}</td>
                   </tr>
                 );
               })}
@@ -1302,83 +1292,19 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     ...filteredSignals.filter((s) => s.type === 'analysis'),
   ];
 
-  // Live Odds Card Component
-  const LiveOddsCard = () => {
-    const { hdp, ou, oneXtwo } = _analysisData;
-    return (
-      <div className="bg-surface border border-white/5 rounded-2xl p-5 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-neon-red animate-pulse" />
-            <h3 className="text-sm font-black text-white uppercase tracking-wider">Live Odds</h3>
-          </div>
-          <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-            <Activity size={12} className="text-neon-red" />
-            <span className="text-[10px] text-gray-400 font-mono">Refresh in 4s</span>
-          </div>
-          <button className="bg-neon-blue/10 text-neon-blue border border-neon-blue/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase hover:bg-neon-blue/20 transition-all">
-            View Odds History
-          </button>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          {/* 1X2 */}
-          <div className="space-y-3">
-            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">1X2</div>
-            <div className="grid grid-cols-3 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
-              {[
-                { label: 'Home', val: oneXtwo?.moneyline_1x2_home || '1.25' },
-                { label: 'Draw', val: oneXtwo?.moneyline_1x2_draw || '5.00' },
-                { label: 'Away', val: oneXtwo?.moneyline_1x2_away || '15.00' }
-              ].map(item => (
-                <div key={item.label} className="text-center p-1.5">
-                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
-                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* O/U */}
-          <div className="space-y-3">
-            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Over/Under {ou?.line || '2.5'}</div>
-            <div className="grid grid-cols-2 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
-              {[
-                { label: 'Over', val: ou?.over || '2.10' },
-                { label: 'Under', val: ou?.under || '1.73' }
-              ].map(item => (
-                <div key={item.label} className="text-center p-1.5">
-                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
-                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* HDP */}
-          <div className="space-y-3">
-            <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Asian Handicap {hdp?.line || '+1.25'}</div>
-            <div className="grid grid-cols-2 gap-1 bg-black/40 p-1.5 rounded-xl border border-white/5">
-              {[
-                { label: 'Home', val: hdp?.home_odds || '1.98' },
-                { label: 'Away', val: hdp?.away_odds || '1.88' }
-              ].map(item => (
-                <div key={item.label} className="text-center p-1.5">
-                  <div className="text-[8px] text-gray-600 mb-1 font-bold">{item.label}</div>
-                  <div className="text-xs font-black text-white font-mono">{item.val}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // AI Predictions Module Component
   const AIPredictionsModule = () => {
     const [subTab, setSubTab] = useState<'1x2' | 'hdp' | 'ou'>('1x2');
     const [strategyFilter, setStrategyFilter] = useState('Aggressive');
+    const [countdown, setCountdown] = useState(8);
+    
+    // Countdown logic
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setCountdown((prev) => (prev <= 1 ? 8 : prev - 1));
+      }, 1000);
+      return () => clearInterval(timer);
+    }, []);
     
     // Find the signal for current sub-tab
     const activeSignal = fixtureScopedSignals.find(s => s.category === subTab && s.type === 'sniper');
@@ -1398,37 +1324,37 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     };
 
     return (
-      <div className="bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative">
+      <div className="bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative font-sans">
         {/* Module Header */}
-        <div className="p-5 flex items-center justify-between">
+        <div className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-neon-gold/10 border border-neon-gold/20 flex items-center justify-center">
-              <Zap size={20} className="text-neon-gold" fill="currentColor" />
+            <div className="w-9 h-9 rounded-xl bg-neon-gold/10 border border-neon-gold/20 flex items-center justify-center">
+              <Zap size={18} className="text-neon-gold" fill="currentColor" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-white">AI Predictions</h3>
-              <div className="flex items-center gap-1.5">
+              <h3 className="text-base font-black text-white tracking-tight uppercase">AI Predictions</h3>
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                <span className="text-[10px] text-gray-400 font-mono uppercase tracking-widest">{strategyFilter}</span>
+                <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">{strategyFilter}</span>
               </div>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-1.5">
             <button 
               onClick={handleOpenHistory}
               className="text-neon-gold flex items-center gap-1.5 text-[10px] font-bold uppercase hover:opacity-80 transition-opacity"
             >
-              <Activity size={14} /> Signal History
+              <Activity size={12} /> History
             </button>
-            <div className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
-              <Activity size={12} className="text-neon-red" />
-              <span className="text-[10px] text-gray-400 font-mono">Refresh in 4s</span>
+            <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
+              <Activity size={10} className="text-neon-red animate-pulse" />
+              <span className="text-[9px] text-gray-400 font-mono">LIVE {countdown}S</span>
             </div>
           </div>
         </div>
 
         {/* Strategy Filters */}
-        <div className="px-5 pb-4 flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar border-b border-white/5 bg-black/20">
           {strategyOptions.map(opt => (
             <button
               key={opt.id}
@@ -1436,7 +1362,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
                 strategyFilter === opt.id 
                   ? `${opt.color} text-white border-transparent shadow-lg shadow-white/5` 
-                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10'
+                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10 hover:text-gray-300'
               }`}
             >
               <span>{opt.icon}</span> {opt.id}
@@ -1445,7 +1371,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         </div>
 
         {/* Category Tabs */}
-        <div className="px-5 pb-5">
+        <div className="px-4 py-3 bg-black/10">
           <div className="flex p-1 bg-black/40 rounded-xl border border-white/5">
             {[
               { id: '1x2', label: '1X2' },
@@ -1455,10 +1381,10 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               <button
                 key={tab.id}
                 onClick={() => setSubTab(tab.id as any)}
-                className={`flex-1 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
+                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
                   subTab === tab.id 
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xl scale-[1.02]' 
-                    : 'text-gray-500 hover:text-white'
+                    : 'text-gray-500 hover:text-white hover:bg-white/5'
                 }`}
               >
                 {tab.label}
@@ -1468,54 +1394,56 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         </div>
 
         {/* Current Prediction Content */}
-        <div className="px-5 pb-6 space-y-5">
+        <div className="px-4 pb-4 space-y-4">
           {/* Market & Status Bar */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-600/20 text-blue-400 border border-blue-600/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600/10 text-blue-400 border border-blue-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase">
                 {activeSignal?.bookmaker || 'BET365'}
               </div>
-              <div className="bg-red-600/20 text-red-400 border border-red-600/30 px-3 py-1 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
-                <Activity size={12} /> {activeSignal?.timestamp || '45\''}
+              <div className="bg-red-600/10 text-red-400 border border-red-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                <Activity size={10} /> {activeSignal?.timestamp || '45\''}
               </div>
             </div>
-            <div className="flex gap-2">
-              <div className="bg-green-600/20 text-green-400 border border-green-600/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
-                <CheckCircle size={14} /> {subTab.toUpperCase()} {activeSignal?.line ? `+${activeSignal.line}` : ''}
+            <div className="flex gap-1.5">
+              <div className="bg-green-600/10 text-green-400 border border-green-600/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                <CheckCircle size={12} /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
               </div>
-              <div className="bg-neon-gold/20 text-neon-gold border border-neon-gold/30 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-neon-gold" /> {activeSignal?.signal || 'WAIT'}
+              <div className="bg-neon-gold/10 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" /> {activeSignal?.signal || 'WAIT'}
               </div>
             </div>
           </div>
 
           {/* Odds Display */}
           {subTab === '1x2' ? (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'HOME', val: data?.moneyline_1x2_home || '1.25' },
-                { label: 'DRAW', val: data?.moneyline_1x2_draw || '5.00' },
-                { label: 'AWAY', val: data?.moneyline_1x2_away || '15.00' }
+                { label: 'HOME', val: data?.moneyline_1x2_home || '1.03' },
+                { label: 'DRAW', val: data?.moneyline_1x2_draw || '15' },
+                { label: 'AWAY', val: data?.moneyline_1x2_away || '51' }
               ].map(item => (
-                <div key={item.label} className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
-                  <div className="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
-                  <div className="text-xl font-black text-white font-mono">{item.val}</div>
+                <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
+                  <div className="text-[8px] text-gray-600 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
+                  <div className="text-lg font-black text-white font-mono">{item.val}</div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="bg-black/40 border border-white/5 rounded-2xl py-3 px-4 text-center">
-                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Line <span className="text-cyan-400">{data?.line || '2.5'}</span></div>
+            <div className="space-y-2">
+              <div className="bg-black/40 border border-white/5 rounded-xl py-2 px-3 text-center">
+                <div className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">
+                  {subTab === 'ou' ? 'Over/Under' : 'Asian Handicap'} <span className="text-cyan-400 font-mono">{data?.line || '2.5'}</span>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { label: subTab === 'ou' ? 'OVER' : 'HOME', val: subTab === 'ou' ? data?.over : data?.home_odds },
                   { label: subTab === 'ou' ? 'UNDER' : 'AWAY', val: subTab === 'ou' ? data?.under : data?.away_odds }
                 ].map(item => (
-                  <div key={item.label} className="bg-black/40 border border-white/5 rounded-2xl p-4 text-center">
-                    <div className="text-[9px] text-gray-500 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
-                    <div className="text-xl font-black text-white font-mono">{item.val || '-'}</div>
+                  <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
+                    <div className="text-[8px] text-gray-600 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
+                    <div className="text-lg font-black text-white font-mono">{item.val || '-'}</div>
                   </div>
                 ))}
               </div>
@@ -1523,49 +1451,62 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
           )}
 
           {/* Detailed Reports */}
-          <div className="space-y-4 pt-2">
+          <div className="space-y-3">
             {/* Staking Plan */}
-            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 space-y-3 shadow-inner">
+            <div className="bg-white/[0.03] border border-white/5 rounded-xl p-3.5 space-y-2.5 shadow-inner">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-neon-gold/10 flex items-center justify-center">
-                    <span className="text-sm">💎</span>
+                  <div className="w-7 h-7 rounded-lg bg-neon-gold/10 flex items-center justify-center border border-neon-gold/10">
+                    <span className="text-xs">💎</span>
                   </div>
                   <div>
-                    <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Staking Plan</div>
-                    <div className="text-xs font-black text-neon-gold">
-                      {activeSignal?.stacking_quantity || '0 Unit'} ({activeSignal?.stacking_plan_description || 'Observe'})
+                    <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Staking Plan</div>
+                    <div className="text-[11px] font-black text-neon-gold">
+                      {activeSignal?.stacking_quantity || '0 Unit'} ({activeSignal?.stacking_plan_description || 'No Value'})
                     </div>
                   </div>
                 </div>
-                {activeSignal?.vig_status && (
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-[9px] text-green-400 font-bold">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    {activeSignal.vig_status}
-                  </div>
-                )}
+                <div className="bg-neon-gold/10 px-1.5 py-0.5 rounded border border-neon-gold/20 flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-neon-gold" />
+                  <span className="text-[8px] text-neon-gold font-bold uppercase">{activeSignal?.signal || 'WAIT'}</span>
+                </div>
               </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed font-medium">
-                {activeSignal?.guruComment || activeSignal?.stacking_plan_description || 'Waiting for market liquidity to generate staking guide.'}
+              <p className="text-[10px] text-gray-400 leading-relaxed font-medium bg-black/20 p-2 rounded-lg border border-white/[0.03]">
+                {activeSignal?.guruComment || 'Waiting for market liquidity to generate staking guide.'}
+              </p>
+            </div>
+
+            {/* Malaysia Commentary (The requested addition) */}
+            <div className="bg-neon-blue/[0.03] border border-neon-blue/10 rounded-xl p-3.5 space-y-2 shadow-inner">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-neon-blue/10 flex items-center justify-center border border-neon-blue/10">
+                  <MessageSquare size={14} className="text-neon-blue" />
+                </div>
+                <div>
+                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Malaysia Commentary</div>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-300 leading-relaxed font-bold bg-black/20 p-2 rounded-lg border border-white/[0.03]">
+                {activeSignal?.commentary_malaysia || 'Analisis pasaran sedang dijalankan. Sila tunggu isyarat seterusnya.'}
               </p>
             </div>
 
             {/* Market Performance */}
-            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 space-y-3 shadow-inner">
+            <div className="bg-white/[0.02] border border-white/5 rounded-xl p-3.5 space-y-2 shadow-inner">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-neon-blue/10 flex items-center justify-center">
-                  <TrendingUp size={16} className="text-neon-blue" />
+                <div className="w-7 h-7 rounded-lg bg-neon-blue/10 flex items-center justify-center border border-neon-blue/10">
+                  <TrendingUp size={14} className="text-neon-blue" />
                 </div>
                 <div>
-                  <div className="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Market Performance</div>
+                  <div className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Market Performance</div>
                 </div>
               </div>
-              <p className="text-[11px] text-gray-300 leading-relaxed italic">
+              <p className="text-[10px] text-gray-400 leading-relaxed italic">
                 {activeSignal?.market_analysis_trend_direction || 'Analyzing market depth and smart money flow...'}
               </p>
               {activeSignal?.market_analysis_odds_check && (
-                <div className="pt-2 border-t border-white/5 text-[10px] text-gray-500 leading-relaxed">
-                  {activeSignal.market_analysis_odds_check}
+                <div className="pt-2 border-t border-white/5 text-[9px] text-gray-500 font-mono leading-tight">
+                  CHECK: {activeSignal.market_analysis_odds_check}
                 </div>
               )}
             </div>
@@ -1573,10 +1514,10 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         </div>
 
         {/* Warning Banner */}
-        <div className="bg-neon-gold/10 border-t border-neon-gold/20 p-4 flex gap-3 items-center">
-          <Info size={16} className="text-neon-gold flex-none" />
-          <p className="text-[9px] text-neon-gold/80 leading-tight font-medium">
-            AI predictions are generated for informational purposes only. Please gamble responsibly. 18+ • These predictions are generated by AI.
+        <div className="bg-neon-gold/[0.05] border-t border-neon-gold/10 p-3 flex gap-3 items-center">
+          <Info size={14} className="text-neon-gold/60 flex-none" />
+          <p className="text-[8px] text-neon-gold/60 leading-tight font-medium uppercase tracking-tight">
+            AI predictions are for informational purposes only. Gamble responsibly. 18+ • Powered by OddsFlow AI.
           </p>
         </div>
       </div>
@@ -1659,7 +1600,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 20 }}
-              className="space-y-6 pb-28"
+              className="space-y-4 pb-28"
             >
               {!hasEntered && (
                 <div className="bg-black/30 border border-white/10 rounded-xl p-5">
@@ -1679,7 +1620,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
               {hasEntered && (
                 <>
-                  <LiveOddsCard />
                   <AIPredictionsModule />
                 </>
               )}
@@ -2133,4 +2073,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       </AnimatePresence>
     </motion.div>
   );
+}
+
 }
