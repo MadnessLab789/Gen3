@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check, Activity } from 'lucide-react';
+import { ArrowLeft, MessageSquare, TrendingUp, Users, X, CheckCircle, Info, Share2, Check, Activity, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { oddsSupabase } from '../supabaseClient';
-import OddsChart from './OddsChart';
 import CopyTrade from './CopyTrade';
 import TraderProfile from './TraderProfile';
 import LiveChat from './LiveChat';
@@ -78,6 +77,7 @@ interface SignalItem {
   bookmaker?: string;
   vig_status?: string;
   clock?: string;
+  signal?: string;
 }
 
 // Nuclear: remove ALL PRE_MATCH mock/seed signals to prevent any hardcoded team names leaking into UI.
@@ -1382,7 +1382,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
     
     // Find the signal for current sub-tab
     const activeSignal = fixtureScopedSignals.find(s => s.category === subTab && s.type === 'sniper');
-    const data = _analysisData[subTab];
+    const data = subTab === '1x2' ? _analysisData.oneXtwo : (subTab === 'hdp' ? _analysisData.hdp : _analysisData.ou);
 
     const strategyOptions = [
       { id: 'Aggressive', icon: '🔥', color: 'bg-orange-500' },
@@ -1769,36 +1769,6 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                     </div>
                   </div>
                 )}
-              </div>
-              )}
-            </motion.div>
-          )}
-
-              {/* Smart Money Chart (bottom) - Temporarily hidden */}
-              {/* TODO: Re-enable when n8n starts pushing continuous odds data */}
-              {false && (
-              <div className="bg-black/40 rounded-lg p-4 border border-white/5">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2 text-neon-green">
-                    <TrendingUp size={18} fill="currentColor" />
-                    <span className="font-bold font-mono tracking-wider">SMART MONEY FLOW</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-black text-white leading-none">
-                      LIVE ODDS TREND
-                    </div>
-                    <div className="text-sm text-neon-red font-mono animate-pulse">● LIVE</div>
-                  </div>
-                </div>
-
-                <OddsChart />
-
-                <div className="flex justify-between items-center mt-3">
-                  <span className="text-xs text-gray-500">Confidence</span>
-                  <span className="text-lg font-bold text-neon-green font-mono">
-                    {match.analysis.confidence}%
-                  </span>
-                </div>
               </div>
               )}
             </motion.div>
