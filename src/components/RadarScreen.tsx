@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Zap, TrendingUp, Activity, X as XIcon, ArrowUpRight } from 'lucide-react';
+import { Zap, TrendingUp, Activity, X as XIcon, ArrowUpRight, MessageSquare, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './Header';
 import { supabase, oddsSupabase } from '../supabaseClient';
@@ -278,6 +278,64 @@ export default function RadarScreen(props: {
     );
   };
 
+  const renderQuantReport = (match: MatchAnalysis) => {
+    const { hdp, ou, oneXtwo } = match;
+    // Find the first available detailed report fields
+    const reportData = hdp || ou || oneXtwo;
+    if (!reportData) return null;
+
+    const hasStaking = reportData.stacking_quantity || reportData.stacking_plan_description;
+    const hasMarket = reportData.market_analysis_trend_direction || reportData.market_analysis_odds_check;
+    const hasCommentary = reportData.commentary_malaysia;
+
+    if (!hasStaking && !hasMarket && !hasCommentary) return null;
+
+    return (
+      <div className="mt-5 space-y-3 pt-4 border-t border-white/5">
+        {hasStaking && (
+          <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+            <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase mb-1">
+              <Users size={12} className="text-neon-gold" />
+              Staking Plan
+            </div>
+            <div className="text-[11px] font-bold text-neon-gold">
+              {reportData.stacking_quantity || '1.0 Unit'} — {reportData.stacking_plan_description || 'Holding'}
+            </div>
+          </div>
+        )}
+
+        {hasMarket && (
+          <div className="bg-black/30 rounded-lg p-3 border border-white/5">
+            <div className="flex items-center gap-2 text-[10px] text-gray-500 font-bold uppercase mb-1">
+              <Activity size={12} className="text-neon-blue" />
+              Market Performance
+            </div>
+            <p className="text-[11px] text-gray-300 leading-relaxed italic">
+              {reportData.market_analysis_trend_direction}
+            </p>
+            {reportData.market_analysis_odds_check && (
+              <p className="text-[10px] text-gray-500 mt-1 border-t border-white/5 pt-1">
+                {reportData.market_analysis_odds_check}
+              </p>
+            )}
+          </div>
+        )}
+
+        {hasCommentary && (
+          <div className="bg-neon-blue/5 border border-neon-blue/20 rounded-lg p-3">
+            <div className="flex items-center gap-2 text-[10px] text-neon-blue font-bold uppercase mb-1">
+              <MessageSquare size={12} />
+              Insider Note
+            </div>
+            <p className="text-[11px] text-gray-200 leading-relaxed">
+              {reportData.commentary_malaysia}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative font-sans min-h-screen">
       <Header onBalanceClick={onBalanceClick} hideBalance={hideBalance} />
@@ -366,6 +424,9 @@ export default function RadarScreen(props: {
                         {renderOUModule(ou)}
                       </div>
                     </div>
+
+                    {/* NEW: Quant Report Section */}
+                    {renderQuantReport(match)}
 
                     {/* Bottom Meta */}
                     <div className="mt-5 pt-4 border-t border-white/5 flex justify-between items-center">

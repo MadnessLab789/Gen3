@@ -64,6 +64,11 @@ interface SignalItem {
   reasoning?: string;
   stats?: string[];
   guruComment?: string;
+  stacking_quantity?: string;
+  stacking_plan_description?: string;
+  market_analysis_trend_direction?: string;
+  market_analysis_odds_check?: string;
+  commentary_malaysia?: string;
 }
 
 // Nuclear: remove ALL PRE_MATCH mock/seed signals to prevent any hardcoded team names leaking into UI.
@@ -410,6 +415,50 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         <span>Status: {signal.statusText}</span>
       </div>
 
+      {/* NEW: Staking Plan Section */}
+      {(signal.stacking_quantity || signal.stacking_plan_description) && (
+        <div className="bg-black/40 border border-white/5 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase">
+            <Users size={12} className="text-neon-gold" />
+            Staking Plan
+          </div>
+          <div className="text-xs font-bold text-neon-gold">
+            {signal.stacking_quantity || '1.0 Unit'} ({signal.stacking_plan_description || 'Holding'})
+          </div>
+        </div>
+      )}
+
+      {/* NEW: Market Performance Section */}
+      {(signal.market_analysis_trend_direction || signal.market_analysis_odds_check) && (
+        <div className="bg-black/40 border border-white/5 rounded-lg p-3 space-y-2">
+          <div className="flex items-center gap-2 text-[10px] text-gray-400 font-bold uppercase">
+            <Activity size={12} className="text-neon-blue" />
+            Market Performance
+          </div>
+          <p className="text-[11px] text-gray-300 leading-relaxed italic">
+            {signal.market_analysis_trend_direction}
+          </p>
+          {signal.market_analysis_odds_check && (
+            <p className="text-[11px] text-gray-400 leading-relaxed border-t border-white/5 pt-2">
+              {signal.market_analysis_odds_check}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* NEW: Insider Commentary */}
+      {signal.commentary_malaysia && (
+        <div className="bg-neon-blue/5 border border-neon-blue/20 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-[10px] text-neon-blue font-bold uppercase mb-1">
+            <MessageSquare size={12} />
+            Insider Note
+          </div>
+          <p className="text-[11px] text-gray-200 leading-relaxed">
+            {signal.commentary_malaysia}
+          </p>
+        </div>
+      )}
+
         {/* TODO: Enable this button when Auto-Betting feature is ready */}
         {false && (
         <button
@@ -507,9 +556,36 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
             <div className="flex items-start gap-3 bg-black/40 border border-white/10 rounded-lg p-3">
               <div className="w-10 h-10 rounded-full bg-neon-purple/30 flex items-center justify-center text-xl">🧔</div>
-              <p className="text-sm text-gray-200 leading-relaxed">
-                {signal.guruComment}
-              </p>
+              <div className="flex-1">
+                <p className="text-sm text-gray-200 leading-relaxed mb-2">
+                  {signal.guruComment}
+                </p>
+                {signal.commentary_malaysia && (
+                  <div className="text-[11px] text-neon-blue border-t border-white/5 pt-2 italic">
+                    MY: {signal.commentary_malaysia}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* NEW: Stats Grid for Analysis Card */}
+            <div className="grid grid-cols-2 gap-3">
+              {(signal.stacking_quantity || signal.stacking_plan_description) && (
+                <div className="bg-black/20 border border-white/5 rounded-lg p-2">
+                  <div className="text-[9px] text-gray-500 uppercase mb-1">Staking</div>
+                  <div className="text-[11px] text-neon-gold font-bold truncate">
+                    {signal.stacking_quantity} / {signal.stacking_plan_description}
+                  </div>
+                </div>
+              )}
+              {signal.market_analysis_trend_direction && (
+                <div className="bg-black/20 border border-white/5 rounded-lg p-2">
+                  <div className="text-[9px] text-gray-500 uppercase mb-1">Trend</div>
+                  <div className="text-[11px] text-white truncate">
+                    {signal.market_analysis_trend_direction}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -564,20 +640,78 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             </button>
           </div>
 
-          <div className="p-5 space-y-4 text-sm text-gray-200 leading-relaxed">
-            <div>
-              <div className="text-neon-gold font-semibold mb-2">💡 核心理由 (Reasoning)</div>
-              <p>{signal.reasoning}</p>
+          <div className="p-5 space-y-5 text-sm text-gray-200 leading-relaxed max-h-[70vh] overflow-y-auto custom-scrollbar">
+            {/* 1. Staking & Strategy */}
+            <div className="bg-black/40 border border-white/5 rounded-xl p-4 space-y-3">
+              <div className="flex items-center gap-2 text-neon-gold font-bold uppercase tracking-wider text-xs">
+                <Users size={14} />
+                Staking & Strategy
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Quantity</div>
+                  <div className="text-white font-mono">{signal.stacking_quantity || '0.5 - 1.0 Unit'}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Plan</div>
+                  <div className="text-neon-green font-bold">{signal.stacking_plan_description || 'Steady Growth'}</div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <div className="text-neon-gold font-semibold mb-2">📈 庄家数据 (Bookmaker Data)</div>
-              <ul className="space-y-1 list-disc list-inside text-gray-300">
-                {(signal.stats || []).map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
+            {/* 2. Market Analysis */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-neon-gold font-bold uppercase tracking-wider text-xs">
+                <TrendingUp size={14} />
+                Market Analysis
+              </div>
+              <div className="space-y-3">
+                <div className="bg-white/5 rounded-lg p-3">
+                  <div className="text-[10px] text-gray-400 uppercase mb-1">Trend Direction</div>
+                  <p className="text-sm text-white leading-relaxed italic">
+                    {signal.market_analysis_trend_direction || 'Analyzing market flow and liquidity...'}
+                  </p>
+                </div>
+                <div className="bg-white/5 rounded-lg p-3">
+                  <div className="text-[10px] text-gray-400 uppercase mb-1">Odds Check</div>
+                  <p className="text-sm text-white leading-relaxed">
+                    {signal.market_analysis_odds_check || 'Monitoring bookmaker risk adjustment...'}
+                  </p>
+                </div>
+              </div>
             </div>
+
+            {/* 3. Guru Commentary (Malaysia) */}
+            <div className="bg-neon-blue/10 border border-neon-blue/20 rounded-xl p-4">
+              <div className="flex items-center gap-2 text-neon-blue font-bold uppercase tracking-wider text-xs mb-2">
+                <MessageSquare size={14} />
+                Insider Commentary (MY)
+              </div>
+              <p className="text-sm text-gray-200 leading-relaxed font-medium">
+                {signal.commentary_malaysia || 'Local market sentiment indicates strong support for this position.'}
+              </p>
+            </div>
+
+            {/* 4. Original Reasoning & Stats (Hidden if empty) */}
+            {signal.reasoning && (
+              <div>
+                <div className="text-neon-gold font-semibold mb-2 flex items-center gap-2">
+                  <Info size={14} /> 核心理由 (Reasoning)
+                </div>
+                <p className="text-gray-300 text-xs italic">{signal.reasoning}</p>
+              </div>
+            )}
+
+            {signal.stats && signal.stats.length > 0 && (
+              <div>
+                <div className="text-neon-gold font-semibold mb-2">📈 庄家数据 (Bookmaker Data)</div>
+                <ul className="space-y-1 list-disc list-inside text-gray-300 text-xs">
+                  {signal.stats.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="px-5 pb-5">
@@ -788,7 +922,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               odds: parseFloat(validatedHdp.home_odds || validatedHdp.away_odds || '1.88') || 1.88,
               unit: '+1',
               statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
-              guruComment: validatedHdp.signal || 'System analyzing handicap movement...'
+              guruComment: validatedHdp.signal || 'System analyzing handicap movement...',
+              stacking_quantity: validatedHdp.stacking_quantity,
+              stacking_plan_description: validatedHdp.stacking_plan_description,
+              market_analysis_trend_direction: validatedHdp.market_analysis_trend_direction,
+              market_analysis_odds_check: validatedHdp.market_analysis_odds_check,
+              commentary_malaysia: validatedHdp.commentary_malaysia,
             });
           }
 
@@ -809,7 +948,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               odds: parseFloat(validatedOu.over || '1.88') || 1.88,
               unit: '+1',
               statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
-              guruComment: validatedOu.signal || 'Analyzing goal expectancy...'
+              guruComment: validatedOu.signal || 'Analyzing goal expectancy...',
+              stacking_quantity: validatedOu.stacking_quantity,
+              stacking_plan_description: validatedOu.stacking_plan_description,
+              market_analysis_trend_direction: validatedOu.market_analysis_trend_direction,
+              market_analysis_odds_check: validatedOu.market_analysis_odds_check,
+              commentary_malaysia: validatedOu.commentary_malaysia,
             });
           }
 
@@ -830,7 +974,12 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               odds: parseFloat(validatedMoneyLine.moneyline_1x2_home || validatedMoneyLine.moneyline_1x2_away || '2.0') || 2.0,
               unit: '+1',
               statusText: hasRealSignal ? 'Active 🎯' : 'Monitoring 🔍',
-              guruComment: validatedMoneyLine.signal || 'Tracking 1x2 price action...'
+              guruComment: validatedMoneyLine.signal || 'Tracking 1x2 price action...',
+              stacking_quantity: validatedMoneyLine.stacking_quantity,
+              stacking_plan_description: validatedMoneyLine.stacking_plan_description,
+              market_analysis_trend_direction: validatedMoneyLine.market_analysis_trend_direction,
+              market_analysis_odds_check: validatedMoneyLine.market_analysis_odds_check,
+              commentary_malaysia: validatedMoneyLine.commentary_malaysia,
             });
           }
 
