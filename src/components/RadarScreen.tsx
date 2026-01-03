@@ -129,35 +129,43 @@ export default function RadarScreen(props: {
     watchlistIds.forEach(id => {
       const channel = osb.channel(`radar-fixture-${id}`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'prematches' }, (p) => {
-          const pid = Number(p.new?.id || p.new?.fixture_id);
+          const payload = p.new as any;
+          const pid = Number(payload?.id || payload?.fixture_id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'handicap' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'Handicap' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'OverUnder' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'over_under' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline 1x2' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'money line' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline' }, (p) => {
-          const pid = Number(p.new?.fixture_id || p.new?.id);
+          const payload = p.new as any;
+          const pid = Number(payload?.fixture_id || payload?.id);
           if (pid === id) fetchMatchAnalysis(id);
         })
         .subscribe();
