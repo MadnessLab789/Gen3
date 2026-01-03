@@ -906,14 +906,8 @@ function App() {
 
       {currentView === 'radar' && (
         <RadarScreen
-          matches={matches as any}
           onBalanceClick={() => setShowWallet(true)}
           hideBalance={hideBalance}
-          onToggleStar={(id) => void toggleStar(id)}
-          onEnterWarRoom={(id) => {
-            const m = matches.find((x) => x.id === id);
-            if (m) void handleEnterWarRoom(m);
-          }}
         />
       )}
 
