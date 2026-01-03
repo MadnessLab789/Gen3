@@ -279,12 +279,12 @@ function App() {
               return m;
             });
 
-            // CRITICAL: Update selectedMatch if it's the one being updated
+            // CRITICAL: Update activeMatch if it's the one being updated
             // This ensures War Room UI stays in sync with live score/clock
-            if (selectedMatch) {
-              const updated = next.find(m => m.id === selectedMatch.id);
+            if (activeMatch) {
+              const updated = next.find(m => m.id === activeMatch.id);
               if (updated) {
-                setSelectedMatch(updated);
+                setActiveMatch(updated);
               }
             }
 
