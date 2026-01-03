@@ -1,310 +1,339 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Zap, TrendingUp, Search, Info, X as XIcon, Activity } from 'lucide-react';
+import { Zap, TrendingUp, Activity, X as XIcon, ArrowUpRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from './Header';
-import { oddsSupabase } from '../supabaseClient';
-import OddsChart from './OddsChart';
+import { supabase, oddsSupabase } from '../supabaseClient';
 
-interface RadarSignal {
-  id: string;
+interface MatchAnalysis {
   fixture_id: number;
-  league_name: string;
-  home_name: string;
-  away_name: string;
-  clock: string;
-  signal_type: 'IN-PLAY' | 'NEXT GOAL' | 'HANDICAP' | string;
-  prediction: string;
-  odds: number;
-  confidence: number;
-  status: 'pending' | 'won' | 'lost';
-  created_at: string;
+  matchInfo: any;
+  hdp: any | null;
+  ou: any | null;
+  oneXtwo: any | null;
+  lastUpdate: number;
 }
 
-type FilterType = 'ALL' | 'IN-PLAY' | 'NEXT GOAL' | 'HANDICAP';
-
 export default function RadarScreen(props: {
+  telegramId: number;
   onBalanceClick: () => void;
   hideBalance?: boolean;
+  onToggleStar: (matchId: number) => void;
 }) {
-  const { onBalanceClick, hideBalance = false } = props;
+  const { telegramId, onBalanceClick, hideBalance = false, onToggleStar } = props;
 
-  const [signals, setSignals] = useState<RadarSignal[]>([]);
-  const [filter, setFilter] = useState<FilterType>('ALL');
-  const [selectedSignal, setSelectedSignal] = useState<RadarSignal | null>(null);
+  const [watchlistIds, setWatchlistIds] = useState<number[]>([]);
+  const [analysisData, setAnalysisData] = useState<Record<number, MatchAnalysis>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Initial Fetch and Realtime Subscription
+  // 1. Fetch Watchlist IDs from Main Supabase
   useEffect(() => {
-    const sb = oddsSupabase;
+    if (!telegramId) return;
+    const sb = supabase;
     if (!sb) return;
 
-    const fetchSignals = async () => {
-      setIsLoading(true);
+    const fetchWatchlist = async () => {
       const { data, error } = await sb
-        .from('radar_signals')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        .from('user_watchlist')
+        .select('fixture_id')
+        .eq('telegram_id', telegramId);
 
       if (!error && data) {
-        setSignals(data);
+        setWatchlistIds(data.map(d => Number(d.fixture_id)));
       }
       setIsLoading(false);
     };
 
-    void fetchSignals();
+    fetchWatchlist();
 
     const channel = sb
-      .channel('radar-signals-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'radar_signals' },
-        (payload) => {
-          const newSignal = payload.new as RadarSignal;
-          setSignals((prev) => [newSignal, ...prev]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'radar_signals' },
-        (payload) => {
-          const updated = payload.new as RadarSignal;
-          setSignals((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-        }
-      )
+      .channel(`radar-watchlist-${telegramId}`)
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'user_watchlist', 
+        filter: `telegram_id=eq.${telegramId}` 
+      }, () => {
+        fetchWatchlist();
+      })
       .subscribe();
 
     return () => {
       sb.removeChannel(channel);
     };
-  }, []);
+  }, [telegramId]);
 
-  const filteredSignals = useMemo(() => {
-    if (filter === 'ALL') return signals;
-    return signals.filter((s) => s.signal_type.toUpperCase() === filter);
-  }, [signals, filter]);
+  // 2. Fetch Detailed Analysis for each Watchlist Item
+  useEffect(() => {
+    if (watchlistIds.length === 0) {
+      setAnalysisData({});
+      return;
+    }
 
-  const categories: FilterType[] = ['ALL', 'IN-PLAY', 'NEXT GOAL', 'HANDICAP'];
+    const osb = oddsSupabase;
+    if (!osb) return;
+
+    const fetchMatchAnalysis = async (fixtureId: number) => {
+      try {
+        const [matchRes, hdpRes, ouRes, mlRes] = await Promise.all([
+          osb.from('prematches').select('*').eq('id', fixtureId).maybeSingle(),
+          osb.from('handicap').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          osb.from('OverUnder').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+          osb.from('moneyline 1x2').select('*').eq('fixture_id', fixtureId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        ]);
+
+        if (matchRes.data) {
+          setAnalysisData(prev => ({
+            ...prev,
+            [fixtureId]: {
+              fixture_id: fixtureId,
+              matchInfo: matchRes.data,
+              hdp: hdpRes.data,
+              ou: ouRes.data,
+              oneXtwo: mlRes.data,
+              lastUpdate: Date.now()
+            }
+          }));
+        }
+      } catch (err) {
+        console.error(`[Radar] Error fetching analysis for ${fixtureId}:`, err);
+      }
+    };
+
+    watchlistIds.forEach(id => {
+      if (!analysisData[id]) {
+        fetchMatchAnalysis(id);
+      }
+    });
+
+    // Subscriptions for each fixture
+    const channels = watchlistIds.map(id => {
+      return osb.channel(`radar-fixture-${id}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'prematches', filter: `id=eq.${id}` }, () => fetchMatchAnalysis(id))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'handicap', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'OverUnder', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'moneyline 1x2', filter: `fixture_id=eq.${id}` }, () => fetchMatchAnalysis(id))
+        .subscribe();
+    });
+
+    return () => {
+      channels.forEach(ch => osb.removeChannel(ch));
+    };
+  }, [watchlistIds]);
+
+  const sortedMatches = useMemo(() => {
+    return watchlistIds
+      .map(id => analysisData[id])
+      .filter(Boolean)
+      .sort((a, b) => b.lastUpdate - a.lastUpdate);
+  }, [watchlistIds, analysisData]);
+
+  const render1x2Module = (oneXtwo: any) => {
+    if (!oneXtwo) return <div className="text-[10px] text-gray-600 italic">No 1x2 data available</div>;
+    
+    // Compare current with opening (mock logic if opening not in DB)
+    const home = Number(oneXtwo.moneyline_1x2_home || 0);
+    const draw = Number(oneXtwo.moneyline_1x2_draw || 0);
+    const away = Number(oneXtwo.moneyline_1x2_away || 0);
+    
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-gray-500 font-mono uppercase">1x2 Movement</span>
+          <div className="flex items-center gap-1 text-neon-gold">
+            <TrendingUp size={10} />
+            <span className="text-[9px] font-bold">HOT GAP</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: 'Home', val: home },
+            { label: 'Draw', val: draw },
+            { label: 'Away', val: away }
+          ].map(item => (
+            <div key={item.label} className="bg-black/40 rounded-lg p-2 border border-white/5 text-center">
+              <div className="text-[9px] text-gray-500 mb-1">{item.label}</div>
+              <div className="text-xs font-black text-white font-mono">{item.val.toFixed(2)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAHModule = (hdp: any) => {
+    if (!hdp) return <div className="text-[10px] text-gray-600 italic">No AH data available</div>;
+    
+    const line = hdp.line || '0';
+    const homeOdds = Number(hdp.home_odds || 0);
+    const awayOdds = Number(hdp.away_odds || 0);
+    const bias = Math.abs(homeOdds - awayOdds) > 0.1 ? (homeOdds < awayOdds ? 'HOME' : 'AWAY') : 'NEUTRAL';
+
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-gray-500 font-mono uppercase">AH Bias (HDP: {line})</span>
+          {bias !== 'NEUTRAL' && (
+            <span className="text-[9px] text-neon-green font-bold flex items-center gap-1">
+              <ArrowUpRight size={10} /> {bias} PRESSURE
+            </span>
+          )}
+        </div>
+        <div className="h-1.5 bg-black/40 rounded-full overflow-hidden flex border border-white/5">
+          <div 
+            className="h-full bg-neon-gold transition-all duration-500" 
+            style={{ width: `${(homeOdds / (homeOdds + awayOdds)) * 100}%` }} 
+          />
+          <div 
+            className="h-full bg-white/10 transition-all duration-500" 
+            style={{ width: `${(awayOdds / (homeOdds + awayOdds)) * 100}%` }} 
+          />
+        </div>
+        <div className="flex justify-between text-[10px] font-mono text-gray-400">
+          <span>H: {homeOdds.toFixed(2)}</span>
+          <span>A: {awayOdds.toFixed(2)}</span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderOUModule = (ou: any) => {
+    if (!ou) return <div className="text-[10px] text-gray-600 italic">No OU data available</div>;
+    
+    const line = ou.line || '2.5';
+    const over = Number(ou.over || 0);
+    const under = Number(ou.under || 0);
+    const sentiment = over < 0.85 ? 'AGGRESSIVE' : over < 0.95 ? 'STEADY' : 'DEFENSIVE';
+
+    return (
+      <div className="space-y-2">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-gray-500 font-mono uppercase">OU Sentiment (Line: {line})</span>
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+            sentiment === 'AGGRESSIVE' ? 'text-neon-red border-neon-red/30 bg-neon-red/5' : 'text-neon-blue border-neon-blue/30 bg-neon-blue/5'
+          }`}>
+            {sentiment}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-black/40 rounded-lg p-2 border border-white/5 flex justify-between items-center">
+            <span className="text-[9px] text-gray-500">OVER</span>
+            <span className="text-xs font-black text-white font-mono">{over.toFixed(2)}</span>
+          </div>
+          <div className="flex-1 bg-black/40 rounded-lg p-2 border border-white/5 flex justify-between items-center">
+            <span className="text-[9px] text-gray-500">UNDER</span>
+            <span className="text-xs font-black text-white font-mono">{under.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="pb-[96px] px-4 pt-6 max-w-md mx-auto relative font-sans min-h-screen">
       <Header onBalanceClick={onBalanceClick} hideBalance={hideBalance} />
 
-      {/* Title & Status */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2 text-neon-gold text-xs font-bold tracking-widest uppercase">
           <Zap size={14} fill="currentColor" className="animate-pulse" />
-          Quant Signal Feed
+          Watchlist Radar
         </div>
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-neon-green/10 border border-neon-green/20">
-          <div className="w-1.5 h-1.5 rounded-full bg-neon-green animate-ping" />
-          <span className="text-[10px] text-neon-green font-mono font-bold uppercase">Live Scanning</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/5 border border-white/10">
+          <Activity size={12} className="text-neon-gold animate-pulse" />
+          <span className="text-[10px] text-gray-400 font-mono font-bold uppercase">{watchlistIds.length} Monitored</span>
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar pb-2">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setFilter(cat)}
-            className={`whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all border ${
-              filter === cat
-                ? 'bg-neon-gold text-black border-neon-gold shadow-[0_0_15px_rgba(255,215,0,0.3)]'
-                : 'bg-surface border-white/5 text-gray-500 hover:text-gray-300'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* Signals List */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="w-8 h-8 border-2 border-neon-gold border-t-transparent rounded-full animate-spin" />
-            <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Synchronizing Radar...</div>
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-8 h-8 border-2 border-neon-gold border-t-transparent rounded-full animate-spin" />
+          <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Calibrating Radar...</div>
+        </div>
+      ) : watchlistIds.length === 0 ? (
+        <div className="text-center py-24 px-10 bg-surface/30 rounded-3xl border border-white/5 border-dashed">
+          <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Zap size={32} className="text-gray-700" />
           </div>
-        ) : filteredSignals.length === 0 ? (
-          <div className="text-center py-20 px-10 bg-surface/30 rounded-2xl border border-white/5">
-            <Search className="w-10 h-10 text-gray-600 mx-auto mb-4 opacity-50" />
-            <div className="text-sm text-gray-500 font-medium">No active signals found.</div>
-            <div className="text-[10px] text-gray-600 mt-2 font-mono uppercase tracking-widest">Scanning market liquidity...</div>
-          </div>
-        ) : (
+          <h3 className="text-lg font-bold text-white mb-3 italic">Your Radar is quiet.</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Add matches to your <span className="text-neon-gold font-bold">Watchlist</span> to start real-time quant analysis and market monitoring.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
           <AnimatePresence initial={false}>
-            {filteredSignals.map((signal) => (
-              <motion.div
-                key={signal.id}
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className={`premium-card relative group cursor-pointer overflow-hidden ${
-                  signal.status === 'won' ? 'bg-neon-green/5 border-neon-green/30' : ''
-                }`}
-                onClick={() => setSelectedSignal(signal)}
-              >
-                {/* Won Overlay */}
-                {signal.status === 'won' && (
-                  <div className="absolute top-0 right-0 px-3 py-1 bg-neon-green text-black text-[10px] font-black uppercase tracking-widest rounded-bl-xl z-10 shadow-lg shadow-neon-green/20">
-                    WON
-                  </div>
-                )}
+            {sortedMatches.map((match) => {
+              const { matchInfo, hdp, ou, oneXtwo } = match;
+              const isLive = matchInfo.status_short === 'LIVE' || matchInfo.status_short === '1H' || matchInfo.status_short === '2H';
 
-                <div className="premium-card-content !p-4">
-                  {/* Top Info */}
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="min-w-0">
-                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono truncate mb-1">
-                        {signal.league_name}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-neon-green font-mono font-bold text-xs">
-                        <Activity size={12} className="animate-pulse" />
-                        <span>{signal.clock}'</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Live Odds</div>
-                      <div className="text-2xl font-black text-neon-gold font-data leading-none group-hover:scale-110 transition-transform origin-right">
-                        @{signal.odds.toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Match & Prediction */}
-                  <div className="mb-4">
-                    <div className="text-sm font-bold text-gray-300 mb-2 truncate">
-                      {signal.home_name} <span className="text-gray-600 mx-1">vs</span> {signal.away_name}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="px-3 py-2 bg-black/40 border border-white/5 rounded-xl flex-1 group-hover:border-neon-gold/20 transition-colors">
-                        <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Prediction</div>
-                        <div className="text-sm font-black text-white italic tracking-tight">
-                          {signal.prediction}
+              return (
+                <motion.div
+                  key={match.fixture_id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="premium-card relative overflow-hidden"
+                >
+                  <div className="premium-card-content !p-5">
+                    {/* Card Header */}
+                    <div className="flex justify-between items-start mb-5">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono truncate mb-1">
+                          {matchInfo.league_name}
+                        </div>
+                        <div className="text-sm font-black text-white truncate">
+                          {matchInfo.home_name} <span className="text-gray-600 font-normal italic">vs</span> {matchInfo.away_name}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {isLive ? (
+                            <span className="text-[10px] text-neon-red font-mono font-bold animate-pulse">● LIVE {matchInfo.goals_home}-{matchInfo.goals_away}</span>
+                          ) : (
+                            <span className="text-[10px] text-gray-500 font-mono">{new Date(matchInfo.start_date_msia).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          )}
                         </div>
                       </div>
-                      <button className="p-3 bg-white/5 rounded-xl text-gray-400 group-hover:text-neon-gold transition-colors">
-                        <Info size={18} />
+                      <button
+                        onClick={() => onToggleStar(match.fixture_id)}
+                        className="p-2 bg-white/5 hover:bg-neon-red/10 hover:text-neon-red rounded-xl transition-colors"
+                      >
+                        <XIcon size={16} />
                       </button>
                     </div>
-                  </div>
 
-                  {/* Confidence Bar */}
-                  <div>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-widest font-mono">Confidence Index</span>
-                      <span className="text-[10px] text-white font-mono font-bold">{signal.confidence}%</span>
+                    {/* Quant Modules */}
+                    <div className="space-y-5">
+                      {/* Module 1: 1x2 */}
+                      <div className="relative">
+                        {render1x2Module(oneXtwo)}
+                      </div>
+
+                      {/* Module 2: AH */}
+                      <div className="relative">
+                        {renderAHModule(hdp)}
+                      </div>
+
+                      {/* Module 3: OU */}
+                      <div className="relative">
+                        {renderOUModule(ou)}
+                      </div>
                     </div>
-                    <div className="h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/5 p-[1px]">
-                      <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${signal.confidence}%` }}
-                        className={`h-full rounded-full ${
-                          signal.confidence > 80 ? 'bg-neon-green shadow-[0_0_8px_rgba(74,222,128,0.5)]' :
-                          signal.confidence > 60 ? 'bg-neon-gold shadow-[0_0_8px_rgba(255,215,0,0.5)]' :
-                          'bg-orange-500'
-                        }`}
-                      />
+
+                    {/* Bottom Meta */}
+                    <div className="mt-5 pt-4 border-t border-white/5 flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 text-[9px] text-gray-500 font-mono uppercase">
+                        <Activity size={10} className="text-neon-gold" />
+                        Live Feed Active
+                      </div>
+                      <div className="text-[9px] text-gray-600 font-mono">
+                        UPDATED {new Date(match.lastUpdate).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
-        )}
-      </div>
-
-      {/* Signal Detail Modal */}
-      <AnimatePresence>
-        {selectedSignal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedSignal(null)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-md bg-surface border border-white/10 rounded-3xl overflow-hidden shadow-2xl"
-            >
-              {/* Modal Header */}
-              <div className="p-6 border-b border-white/5">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">
-                      {selectedSignal.league_name}
-                    </div>
-                    <h3 className="text-xl font-black text-white leading-tight">
-                      {selectedSignal.home_name}<br />
-                      <span className="text-neon-gold">vs</span><br />
-                      {selectedSignal.away_name}
-                    </h3>
-                  </div>
-                  <button
-                    onClick={() => setSelectedSignal(null)}
-                    className="p-2 bg-white/5 rounded-xl text-gray-500 hover:text-white transition"
-                  >
-                    <XIcon size={20} />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 px-4 py-3 bg-black/40 rounded-2xl border border-neon-gold/20">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Quant Prediction</div>
-                    <div className="text-lg font-black text-white italic tracking-tighter">
-                      {selectedSignal.prediction}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Odds</div>
-                    <div className="text-3xl font-black text-neon-gold font-data leading-none">
-                      @{selectedSignal.odds.toFixed(2)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Modal Content - Chart Area */}
-              <div className="p-6 space-y-6">
-                <div>
-                  <div className="flex items-center gap-2 text-neon-green text-[10px] font-bold tracking-widest uppercase mb-4">
-                    <TrendingUp size={14} />
-                    Live Pressure Trend
-                  </div>
-                  <div className="h-48 w-full bg-black/40 rounded-2xl border border-white/5 p-4 relative">
-                    {/* Re-use OddsChart component for visualization */}
-                    <OddsChart />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Volume 24h</div>
-                    <div className="text-lg font-black text-white font-mono">$1.2M</div>
-                  </div>
-                  <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <div className="text-[10px] text-gray-500 uppercase tracking-widest font-mono mb-1">Volatility</div>
-                    <div className="text-lg font-black text-neon-red font-mono">HIGH</div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setSelectedSignal(null)}
-                  className="w-full py-4 bg-neon-gold text-black font-black uppercase tracking-widest rounded-2xl hover:brightness-110 transition shadow-lg shadow-neon-gold/20 flex items-center justify-center gap-2 active:scale-95"
-                >
-                  <Zap size={18} fill="currentColor" />
-                  FOLLOW SIGNAL
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 }

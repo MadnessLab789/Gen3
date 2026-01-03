@@ -906,8 +906,10 @@ function App() {
 
       {currentView === 'radar' && (
         <RadarScreen
+          telegramId={user?.telegram_id ?? user?.id ?? 0}
           onBalanceClick={() => setShowWallet(true)}
           hideBalance={hideBalance}
+          onToggleStar={(id) => void toggleStar(id)}
         />
       )}
 
