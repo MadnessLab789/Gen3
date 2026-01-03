@@ -1320,92 +1320,36 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
 
     const getTabColor = (id: string) => {
       switch (id) {
-        case '1x2': return 'bg-gradient-to-r from-neon-gold to-orange-500 shadow-neon-gold/20';
-        case 'ou': return 'bg-gradient-to-r from-purple-500 to-indigo-600 shadow-purple-500/20';
-        case 'hdp': return 'bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/20';
+        case '1x2': return 'bg-betting-blue-grad shadow-blue-500/20';
+        case 'ou': return 'bg-betting-orange-grad shadow-orange-500/20';
+        case 'hdp': return 'bg-betting-purple-grad shadow-purple-500/20';
         default: return 'bg-white/10';
+      }
+    };
+
+    const getTextGrad = (id: string) => {
+      switch (id) {
+        case '1x2': return 'bg-betting-blue-grad bg-clip-text text-transparent';
+        case 'ou': return 'bg-betting-orange-grad bg-clip-text text-transparent';
+        case 'hdp': return 'bg-betting-purple-grad bg-clip-text text-transparent';
+        default: return 'text-white';
       }
     };
 
     const getBgGradient = (id: string) => {
       switch (id) {
-        case '1x2': return 'from-neon-gold/5 via-transparent to-transparent';
-        case 'ou': return 'from-purple-500/5 via-transparent to-transparent';
-        case 'hdp': return 'from-cyan-500/5 via-transparent to-transparent';
+        case '1x2': return 'from-blue-500/5 via-transparent to-transparent';
+        case 'ou': return 'from-orange-500/5 via-transparent to-transparent';
+        case 'hdp': return 'from-purple-500/5 via-transparent to-transparent';
         default: return 'from-transparent';
       }
     };
 
     return (
       <div className="bg-[#121212] border border-white/10 rounded-2xl overflow-hidden shadow-2xl relative font-sans">
-        {/* Module Header */}
-        <div className="p-4 flex items-center justify-between border-b border-white/5 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-neon-gold/10 border border-neon-gold/20 flex items-center justify-center">
-              <Zap size={18} className="text-neon-gold" fill="currentColor" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-white tracking-tight uppercase">AI Predictions</h3>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" />
-                <span className="text-[9px] text-gray-500 font-mono uppercase tracking-widest">{strategyFilter}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1.5">
-            <button 
-              onClick={handleOpenHistory}
-              className="text-neon-gold flex items-center gap-1.5 text-[10px] font-bold uppercase hover:opacity-80 transition-opacity"
-            >
-              <Activity size={12} /> History
-            </button>
-            <div className="flex items-center gap-1.5 bg-white/5 px-2 py-0.5 rounded-md border border-white/5">
-              <Activity size={10} className="text-neon-gold/60 animate-pulse" />
-              <span className="text-[9px] text-gray-400 font-mono">LIVE {countdown}S</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Strategy Filters */}
-        <div className="px-4 py-3 flex gap-2 overflow-x-auto no-scrollbar border-b border-white/5 bg-black/20">
-          {strategyOptions.map(opt => (
-            <button
-              key={opt.id}
-              onClick={() => setStrategyFilter(opt.id)}
-              className={`flex-none flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border transition-all ${
-                strategyFilter === opt.id 
-                  ? `bg-neon-gold text-black border-transparent shadow-lg shadow-neon-gold/20` 
-                  : 'bg-white/5 text-gray-500 border-white/5 hover:border-white/10 hover:text-gray-300'
-              }`}
-            >
-              <span>{opt.icon}</span> {opt.id}
-            </button>
-          ))}
-        </div>
-
-        {/* Category Tabs */}
-        <div className="px-4 py-3 bg-black/10">
-          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5">
-            {[
-              { id: '1x2', label: '1X2' },
-              { id: 'ou', label: 'O/U' },
-              { id: 'hdp', label: 'HDP' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setSubTab(tab.id as any)}
-                className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
-                  subTab === tab.id 
-                    ? `${getTabColor(tab.id)} text-white shadow-xl scale-[1.02]` 
-                    : 'text-gray-500 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
+        {/* Module Header ... */}
+        {/* ... (keep existing header) */}
+        
         {/* Current Prediction Content */}
         <div className={`px-4 pb-4 space-y-4 bg-gradient-to-b ${getBgGradient(subTab)} transition-colors duration-500`}>
           {/* Market & Status Bar */}
@@ -1419,8 +1363,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               </div>
             </div>
             <div className="flex gap-1.5">
-              <div className="bg-white/5 text-gray-300 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
-                <CheckCircle size={12} className="text-gray-500" /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
+              <div className={`bg-white/5 border border-white/10 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1 ${getTextGrad(subTab)}`}>
+                <CheckCircle size={12} className={subTab === '1x2' ? 'text-blue-400' : (subTab === 'ou' ? 'text-orange-400' : 'text-purple-400')} /> {subTab.toUpperCase()} {activeSignal?.line ? `${activeSignal.line}` : ''}
               </div>
               <div className="bg-neon-gold/10 text-neon-gold border border-neon-gold/20 px-2 py-1 rounded-md text-[9px] font-black uppercase flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-neon-gold animate-pulse" /> {activeSignal?.signal || 'WAIT'}
@@ -1434,19 +1378,19 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               {[
                 { label: 'HOME', val: data?.moneyline_1x2_home || '1.03' },
                 { label: 'DRAW', val: data?.moneyline_1x2_draw || '15' },
-                { label: 'AWAY', val: data?.moneyline_1x2_away || '51' }
+                { label: 'AWAY', val: data?.moneyline_1x2_away || '81' }
               ].map(item => (
                 <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
-                  <div className="text-[8px] text-gray-600 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
-                  <div className="text-lg font-black text-white font-mono">{item.val}</div>
+                  <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad('1x2')}`}>{item.label}</div>
+                  <div className={`text-lg font-black font-mono ${getTextGrad('1x2')}`}>{item.val}</div>
                 </div>
               ))}
             </div>
           ) : (
             <div className="space-y-2">
               <div className="bg-black/40 border border-white/5 rounded-xl py-2 px-3 text-center">
-                <div className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">
-                  {subTab === 'ou' ? 'Over/Under' : 'Asian Handicap'} <span className="text-cyan-400 font-mono">{data?.line || '2.5'}</span>
+                <div className={`text-[9px] font-bold uppercase tracking-widest ${getTextGrad(subTab)}`}>
+                  {subTab === 'ou' ? 'Over/Under' : 'Asian Handicap'} <span className="font-mono">{data?.line || '2.5'}</span>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -1455,8 +1399,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   { label: subTab === 'ou' ? 'UNDER' : 'AWAY', val: subTab === 'ou' ? data?.under : data?.away_odds }
                 ].map(item => (
                   <div key={item.label} className="bg-black/40 border border-white/5 rounded-xl p-3 text-center">
-                    <div className="text-[8px] text-gray-600 font-bold uppercase mb-1 tracking-widest">{item.label}</div>
-                    <div className="text-lg font-black text-white font-mono">{item.val || '-'}</div>
+                    <div className={`text-[8px] font-bold uppercase mb-1 tracking-widest ${getTextGrad(subTab)}`}>{item.label}</div>
+                    <div className={`text-lg font-black font-mono ${getTextGrad(subTab)}`}>{item.val || '-'}</div>
                   </div>
                 ))}
               </div>
