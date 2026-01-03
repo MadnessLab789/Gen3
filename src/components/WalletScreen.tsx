@@ -48,6 +48,8 @@ export default function WalletScreen(props: {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [depositAmount, setDepositAmount] = useState<string>('');
+  const [withdrawAmount, setWithdrawAmount] = useState<string>('');
+  const [withdrawAddress, setWithdrawAddress] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Detailed financial data
@@ -213,6 +215,76 @@ export default function WalletScreen(props: {
     } catch (err: any) {
       console.error('[Deposit] Error:', err);
       showAlert(`Failed to initiate deposit: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmWithdraw = async () => {
+    const amountNum = parseFloat(withdrawAmount);
+    const fee = 1.50;
+    const totalRequired = amountNum + fee;
+
+    if (isNaN(amountNum) || amountNum < 20) {
+      showAlert('Minimum withdrawal amount is 20 USDT.');
+      return;
+    }
+
+    if (!withdrawAddress.trim()) {
+      showAlert('Please enter a valid receiver address.');
+      return;
+    }
+
+    if (totalRequired > financials.balance) {
+      showAlert(`Insufficient balance. You need ${totalRequired.toFixed(2)} USDT (including ${fee.toFixed(2)} fee).`);
+      return;
+    }
+
+    if (!telegramId || !supabaseUserUuid) {
+      showAlert('Authentication error. Please try again.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const sb = supabase;
+    if (!sb) {
+      showAlert('Supabase not initialized.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      // 1. Create withdrawal transaction record
+      const { error: txError } = await sb
+        .from('oddsflow_radar_transactions')
+        .insert({
+          user_id: supabaseUserUuid,
+          telegram_id: telegramId,
+          amount: amountNum,
+          status: 'pending',
+          type: 'withdraw',
+          network: 'TRC20',
+          address: withdrawAddress.trim(),
+          fee: fee
+        });
+
+      if (txError) throw txError;
+
+      // 2. Atomically (sequential here) deduct from user balance
+      const { error: userError } = await sb
+        .from('users')
+        .update({ balance: financials.balance - totalRequired } as any)
+        .eq('telegram_id', telegramId);
+
+      if (userError) throw userError;
+
+      showAlert('Withdrawal request submitted. Admin will review within 12 hours.');
+      setShowWithdraw(false);
+      setWithdrawAmount('');
+      setWithdrawAddress('');
+    } catch (err: any) {
+      console.error('[Withdraw] Error:', err);
+      showAlert(`Failed to process withdrawal: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -498,6 +570,9 @@ export default function WalletScreen(props: {
                   <input 
                     type="number" 
                     placeholder="Minimum 20.00"
+                    value={withdrawAmount}
+                    onChange={(e) => setWithdrawAmount(e.target.value)}
+                    disabled={isSubmitting}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-data text-white focus:outline-none focus:border-neon-gold/50 text-lg"
                   />
                 </div>
@@ -507,6 +582,9 @@ export default function WalletScreen(props: {
                   <input 
                     type="text" 
                     placeholder="T..."
+                    value={withdrawAddress}
+                    onChange={(e) => setWithdrawAddress(e.target.value)}
+                    disabled={isSubmitting}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 font-data text-white focus:outline-none focus:border-neon-gold/50"
                   />
                 </div>
@@ -523,10 +601,13 @@ export default function WalletScreen(props: {
                 </div>
 
                 <button 
-                  onClick={() => showAlert('Withdrawal request submitted. We will notify you once processed.')}
-                  className="w-full py-4 bg-white/10 border border-white/20 text-white font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition active:scale-[0.98] mt-2"
+                  onClick={handleConfirmWithdraw}
+                  disabled={isSubmitting || !withdrawAmount || !withdrawAddress}
+                  className="w-full py-4 bg-white/10 border border-white/20 text-white font-black uppercase tracking-widest rounded-xl hover:bg-white/20 transition active:scale-[0.98] mt-2 disabled:opacity-50"
                 >
-                  Request Withdrawal
+                  {isSubmitting ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : 'Request Withdrawal'}
                 </button>
               </div>
             </motion.div>
