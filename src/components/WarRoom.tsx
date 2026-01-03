@@ -683,8 +683,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
               <div className="w-10 h-10 rounded-full bg-neon-purple/30 flex items-center justify-center text-xl">🧔</div>
               <div className="flex-1">
                 <p className="text-sm text-gray-200 leading-relaxed mb-2">
-                  {signal.guruComment}
-                </p>
+                {signal.guruComment}
+              </p>
                 {signal.commentary_malaysia && (
                   <div className="text-[11px] text-neon-blue border-t border-white/5 pt-2 italic">
                     MY: {signal.commentary_malaysia}
@@ -773,7 +773,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 Staking & Strategy
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+            <div>
                   <div className="text-[10px] text-gray-500 uppercase">Quantity</div>
                   <div className="text-white font-mono">{signal.stacking_quantity || '0.5 - 1.0 Unit'}</div>
                 </div>
@@ -828,14 +828,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
             )}
 
             {signal.stats && signal.stats.length > 0 && (
-              <div>
-                <div className="text-neon-gold font-semibold mb-2">📈 庄家数据 (Bookmaker Data)</div>
+            <div>
+              <div className="text-neon-gold font-semibold mb-2">📈 庄家数据 (Bookmaker Data)</div>
                 <ul className="space-y-1 list-disc list-inside text-gray-300 text-xs">
                   {signal.stats.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </div>
+                  <li key={idx}>{item}</li>
+                ))}
+              </ul>
+            </div>
             )}
           </div>
 
@@ -1318,9 +1318,22 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
       { id: 'Safe Play', icon: '🏰' }
     ];
 
-    const handleOpenHistory = () => {
-      setHistoryCategory(subTab);
-      setShowHistoryModal(true);
+    const getTabColor = (id: string) => {
+      switch (id) {
+        case '1x2': return 'bg-gradient-to-r from-neon-gold to-orange-500 shadow-neon-gold/20';
+        case 'ou': return 'bg-gradient-to-r from-purple-500 to-indigo-600 shadow-purple-500/20';
+        case 'hdp': return 'bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/20';
+        default: return 'bg-white/10';
+      }
+    };
+
+    const getBgGradient = (id: string) => {
+      switch (id) {
+        case '1x2': return 'from-neon-gold/5 via-transparent to-transparent';
+        case 'ou': return 'from-purple-500/5 via-transparent to-transparent';
+        case 'hdp': return 'from-cyan-500/5 via-transparent to-transparent';
+        default: return 'from-transparent';
+      }
     };
 
     return (
@@ -1383,7 +1396,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                 onClick={() => setSubTab(tab.id as any)}
                 className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${
                   subTab === tab.id 
-                    ? 'bg-white/10 text-white shadow-inner scale-[1.02] border border-white/10' 
+                    ? `${getTabColor(tab.id)} text-white shadow-xl scale-[1.02]` 
                     : 'text-gray-500 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -1394,7 +1407,7 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
         </div>
 
         {/* Current Prediction Content */}
-        <div className="px-4 pb-4 space-y-4">
+        <div className={`px-4 pb-4 space-y-4 bg-gradient-to-b ${getBgGradient(subTab)} transition-colors duration-500`}>
           {/* Market & Status Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -1705,11 +1718,11 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                         <p className="text-xs text-gray-500 mt-2">
                           Warm tip: Reports are usually generated about 3 minutes before kickoff.
                         </p>
-                      )}
-                    </div>
-                  </div>
                 )}
               </div>
+                  </div>
+                )}
+                    </div>
               )}
             </motion.div>
           )}
@@ -1746,8 +1759,8 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                     <LiveChat
                       fixtureId={match.id}
                       currentUser={{ id: chatUserId, username: chatUsername }}
-                      onBack={() => setActiveTab('signals')}
-                    />
+                onBack={() => setActiveTab('signals')}
+              />
                   ) : (
                     <div className="text-sm text-gray-400 p-4">
                       Chat is not available. Please ensure you are logged in.
@@ -1861,14 +1874,14 @@ ${icon} 𝗢𝗗𝗗𝗦𝗙𝗟𝗢𝗪 ${title}
                   <div className="text-sm font-bold text-neon-gold mb-2">Enter War Room</div>
                   <div className="text-xs text-gray-300 leading-relaxed">
                     进入 War Room 后才会开始加载 Copy Trade 模块。
-                  </div>
-                  <button
+                      </div>
+                      <button
                     onClick={() => setHasEntered(true)}
                     className="w-full mt-4 py-3 bg-gradient-to-r from-neon-gold to-orange-500 text-black font-black text-sm flex items-center justify-center gap-2 hover:shadow-lg hover:shadow-neon-gold/50 transition-all active:scale-95 rounded-xl"
                   >
                     Enter War Room <Activity size={16} />
-                  </button>
-                </div>
+                      </button>
+                    </div>
               ) : selectedTrader ? (
                 <TraderProfile trader={selectedTrader} onClose={() => setSelectedTrader(null)} />
               ) : (
